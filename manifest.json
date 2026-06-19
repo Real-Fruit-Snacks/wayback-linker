@@ -1,0 +1,10 @@
+{
+  "id": "wayback-linker",
+  "name": "Wayback Linker",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "Archive external links in the active note with the Wayback Machine and replace them with snapshot URLs.",
+  "author": "Real-Fruit-Snacks",
+  "authorUrl": "https://github.com/Real-Fruit-Snacks",
+  "isDesktopOnly": false
+}
