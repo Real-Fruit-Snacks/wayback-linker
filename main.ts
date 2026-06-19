@@ -974,26 +974,32 @@ class WaybackLinkerSettingTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName("Internet Archive access key")
       .setDesc("Select or create an Obsidian keychain secret containing the access key from archive.org/account/s3.php.")
-      .addComponent((containerEl) =>
-        new SecretComponent(this.app, containerEl)
-          .setValue(this.plugin.settings.accessKeySecretId)
-          .onChange(async (value) => {
-            this.plugin.settings.accessKeySecretId = value;
-            await this.plugin.saveSettings();
-          })
-      );
+      .addComponent((containerEl) => {
+        const comp = new SecretComponent(this.app, containerEl);
+        if (this.plugin.settings.accessKeySecretId) {
+          comp.setValue(this.plugin.settings.accessKeySecretId);
+        }
+        comp.onChange(async (value) => {
+          this.plugin.settings.accessKeySecretId = value;
+          await this.plugin.saveSettings();
+        });
+        return comp;
+      });
 
     new Setting(containerEl)
       .setName("Internet Archive secret key")
       .setDesc("Select or create an Obsidian keychain secret containing the Internet Archive secret key.")
-      .addComponent((containerEl) =>
-        new SecretComponent(this.app, containerEl)
-          .setValue(this.plugin.settings.secretKeySecretId)
-          .onChange(async (value) => {
-            this.plugin.settings.secretKeySecretId = value;
-            await this.plugin.saveSettings();
-          })
-      );
+      .addComponent((containerEl) => {
+        const comp = new SecretComponent(this.app, containerEl);
+        if (this.plugin.settings.secretKeySecretId) {
+          comp.setValue(this.plugin.settings.secretKeySecretId);
+        }
+        comp.onChange(async (value) => {
+          this.plugin.settings.secretKeySecretId = value;
+          await this.plugin.saveSettings();
+        });
+        return comp;
+      });
   }
 }
 
