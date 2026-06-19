@@ -23,7 +23,7 @@
   "bugs": {
     "url": "https://github.com/Real-Fruit-Snacks/wayback-linker/issues"
   },
-  "homepage": "https://github.com/Real-Fruit-Snacks/wayback-linker#readme",
+  "homepage": "https://real-fruit-snacks.github.io/wayback-linker/",
   "devDependencies": {
     "@types/node": "^20.11.30",
     "builtin-modules": "^3.3.0",

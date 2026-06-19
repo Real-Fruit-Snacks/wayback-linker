@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Wayback Linker archives external links in Obsidian notes and replaces them with durable Wayback Machine snapshots.">
+  <meta name="theme-color" content="#101214">
+  <meta property="og:title" content="Wayback Linker for Obsidian">
+  <meta property="og:description" content="Archive every external link in a note, track capture progress, and keep durable snapshot URLs in your vault.">
+  <meta property="og:image" content="https://real-fruit-snacks.github.io/wayback-linker/assets/wayback-linker-progress.png">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://real-fruit-snacks.github.io/wayback-linker/">
+  <title>Wayback Linker for Obsidian</title>
+  <link rel="stylesheet" href="styles.css">
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Wayback Linker",
+      "applicationCategory": "ProductivityApplication",
+      "operatingSystem": "Obsidian",
+      "softwareVersion": "0.2.0",
+      "license": "https://opensource.org/licenses/MIT",
+      "downloadUrl": "https://github.com/Real-Fruit-Snacks/wayback-linker/releases/latest",
+      "codeRepository": "https://github.com/Real-Fruit-Snacks/wayback-linker"
+    }
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header" data-header>
+    <a class="brand" href="#top" aria-label="Wayback Linker home">
+      <i data-lucide="archive" aria-hidden="true"></i>
+      <span>Wayback Linker</span>
+    </a>
+    <nav aria-label="Primary navigation">
+      <a href="#workflow">Workflow</a>
+      <a href="#install">Install</a>
+      <a href="#security">Security</a>
+      <a class="nav-github" href="https://github.com/Real-Fruit-Snacks/wayback-linker">
+        <i data-lucide="github" aria-hidden="true"></i>
+        <span>GitHub</span>
+      </a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="hero" id="top" aria-label="Wayback Linker plugin progress window">
+      <div class="hero-shade" aria-hidden="true"></div>
+      <div class="hero-inner">
+        <p class="eyebrow"><span data-version>v0.2.0</span> · Open source Obsidian plugin</p>
+        <h1>Wayback Linker</h1>
+        <p class="hero-copy">Turn fragile web references into durable Wayback Machine snapshots without leaving your note.</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="https://github.com/Real-Fruit-Snacks/wayback-linker/releases/latest">
+            <i data-lucide="download" aria-hidden="true"></i>
+            Download latest
+          </a>
+          <a class="button button-secondary" href="https://github.com/Real-Fruit-Snacks/wayback-linker">
+            <i data-lucide="github" aria-hidden="true"></i>
+            View source
+          </a>
+        </div>
+        <p class="hero-note">Requires Obsidian 1.11.4 or newer</p>
+      </div>
+    </section>
+
+    <section class="intro-band" aria-labelledby="intro-heading">
+      <div class="content-width intro-grid">
+        <div>
+          <p class="section-label">Built for research that lasts</p>
+          <h2 id="intro-heading">Archive a note’s references in one deliberate pass.</h2>
+        </div>
+        <p>Wayback Linker finds external HTTP links, asks Internet Archive for fresh captures, and rewrites successful targets in the active Markdown note. Existing Wayback URLs and image links are skipped automatically.</p>
+      </div>
+    </section>
+
+    <section class="feature-band" aria-labelledby="features-heading">
+      <div class="content-width">
+        <div class="section-heading">
+          <p class="section-label">What it handles</p>
+          <h2 id="features-heading">Useful control without hiding the messy parts.</h2>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <i data-lucide="sparkles" aria-hidden="true"></i>
+            <h3>Fresh capture first</h3>
+            <p>Requests a current Save Page Now snapshot and only marks it fresh when Wayback returns a recent timestamp.</p>
+          </article>
+          <article class="feature-card">
+            <i data-lucide="history" aria-hidden="true"></i>
+            <h3>Fallback when needed</h3>
+            <p>Optionally uses the latest existing snapshot when a host blocks, throttles, or refuses a new capture.</p>
+          </article>
+          <article class="feature-card">
+            <i data-lucide="list-checks" aria-hidden="true"></i>
+            <h3>Visible batch progress</h3>
+            <p>See the active URL, fresh captures, fallbacks, failures, and retries in a live progress window.</p>
+          </article>
+          <article class="feature-card">
+            <i data-lucide="mouse-pointer-click" aria-hidden="true"></i>
+            <h3>One link or the whole note</h3>
+            <p>Use the ribbon command for a batch, or right-click a single URL when you only need one snapshot.</p>
+          </article>
+          <article class="feature-card">
+            <i data-lucide="gauge" aria-hidden="true"></i>
+            <h3>Throttle aware</h3>
+            <p>Waits and retries when Internet Archive reports an active-session limit, with configurable timing.</p>
+          </article>
+          <article class="feature-card">
+            <i data-lucide="key-round" aria-hidden="true"></i>
+            <h3>Native keychain storage</h3>
+            <p>Internet Archive credentials stay in Obsidian SecretStorage; plugin data contains only selected secret IDs.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="workflow-band" id="workflow" aria-labelledby="workflow-heading">
+      <div class="content-width">
+        <div class="section-heading">
+          <p class="section-label">Workflow</p>
+          <h2 id="workflow-heading">From live URL to archived reference.</h2>
+        </div>
+        <ol class="workflow-list">
+          <li>
+            <span class="step-number">01</span>
+            <h3>Run the command</h3>
+            <p>Open a Markdown note and choose the ribbon action or command palette entry.</p>
+          </li>
+          <li>
+            <span class="step-number">02</span>
+            <h3>Watch each capture</h3>
+            <p>Keep the progress window open, or close it and reopen it from the clickable status bar item.</p>
+          </li>
+          <li>
+            <span class="step-number">03</span>
+            <h3>Keep durable links</h3>
+            <p>Successful original targets are replaced with their fresh or fallback Wayback snapshot URLs.</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="security-band" id="security" aria-labelledby="security-heading">
+      <div class="content-width security-grid">
+        <div class="security-icon" aria-hidden="true"><i data-lucide="shield-check"></i></div>
+        <div>
+          <p class="section-label">Credential security</p>
+          <h2 id="security-heading">Secrets belong in the keychain, not the vault.</h2>
+          <p>Wayback Linker uses Obsidian’s native secret selector for Internet Archive credentials. On upgrade, legacy saved values are migrated into SecretStorage and removed from plugin data.</p>
+        </div>
+        <ul class="security-points">
+          <li><i data-lucide="check" aria-hidden="true"></i> Secret values never enter <code>data.json</code></li>
+          <li><i data-lucide="check" aria-hidden="true"></i> Values are resolved at request time</li>
+          <li><i data-lucide="check" aria-hidden="true"></i> Named secrets can be managed centrally in Obsidian</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="install-band" id="install" aria-labelledby="install-heading">
+      <div class="content-width install-layout">
+        <div class="install-copy">
+          <p class="section-label">Installation</p>
+          <h2 id="install-heading">Add it to your vault.</h2>
+          <p>Download the latest release files and place them together in the plugin directory shown here.</p>
+          <div class="segmented-control" role="tablist" aria-label="Installation method">
+            <button class="segment is-active" type="button" role="tab" aria-selected="true" data-tab="release">Release files</button>
+            <button class="segment" type="button" role="tab" aria-selected="false" data-tab="source">Build from source</button>
+          </div>
+        </div>
+
+        <div class="install-panel" data-panel="release">
+          <ol>
+            <li>Download <code>main.js</code>, <code>manifest.json</code>, and <code>styles.css</code> from the latest release.</li>
+            <li>Create this directory inside your vault.</li>
+          </ol>
+          <div class="code-row">
+            <code data-copy-value>.obsidian/plugins/wayback-linker</code>
+            <button class="icon-button" type="button" aria-label="Copy plugin directory" title="Copy plugin directory" data-copy>
+              <i data-lucide="copy" aria-hidden="true"></i>
+            </button>
+          </div>
+          <p>Copy all three files there, reload Obsidian, and enable <strong>Wayback Linker</strong> under Community Plugins.</p>
+          <a class="text-link" href="https://github.com/Real-Fruit-Snacks/wayback-linker/releases/latest">Open latest release <i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
+        </div>
+
+        <div class="install-panel" data-panel="source" hidden>
+          <p>Clone the repository, install dependencies, verify the suite, and build the production bundle.</p>
+          <div class="code-block">
+            <pre><code data-copy-value>git clone https://github.com/Real-Fruit-Snacks/wayback-linker.git
+cd wayback-linker
+npm install
+npm test
+npm run build</code></pre>
+            <button class="icon-button" type="button" aria-label="Copy build commands" title="Copy build commands" data-copy>
+              <i data-lucide="copy" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="faq-band" aria-labelledby="faq-heading">
+      <div class="content-width faq-layout">
+        <div>
+          <p class="section-label">Questions</p>
+          <h2 id="faq-heading">Before you archive.</h2>
+        </div>
+        <div class="faq-list">
+          <details>
+            <summary>Does it replace every URL automatically?</summary>
+            <p>It replaces external HTTP and HTTPS targets that receive a fresh capture or an enabled fallback. Failed captures remain unchanged. Existing Wayback links and image targets are skipped.</p>
+          </details>
+          <details>
+            <summary>Why do some captures use a fallback?</summary>
+            <p>Internet Archive may reject heavily captured hosts, limit active sessions, or be unable to save a page. When fallback is enabled, the plugin looks for the most recent existing snapshot instead.</p>
+          </details>
+          <details>
+            <summary>Where do Internet Archive credentials live?</summary>
+            <p>In Obsidian SecretStorage. The plugin saves only the selected secret IDs, never the credential values, in its settings file.</p>
+          </details>
+          <details>
+            <summary>Can I archive just one URL?</summary>
+            <p>Yes. Right-click an external URL in the editor and choose <strong>Archive link with Wayback Machine</strong>.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section class="closing-band" aria-labelledby="closing-heading">
+      <div class="content-width closing-inner">
+        <div>
+          <p class="section-label">Preserve the citation</p>
+          <h2 id="closing-heading">Keep the context your notes depend on.</h2>
+        </div>
+        <a class="button button-dark" href="https://github.com/Real-Fruit-Snacks/wayback-linker/releases/latest">
+          <i data-lucide="download" aria-hidden="true"></i>
+          Download Wayback Linker
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="content-width footer-inner">
+      <div class="footer-brand">
+        <i data-lucide="archive" aria-hidden="true"></i>
+        <span>Wayback Linker</span>
+      </div>
+      <p>MIT licensed · Built by <a href="https://github.com/Real-Fruit-Snacks">Real-Fruit-Snacks</a></p>
+      <div class="footer-links">
+        <a href="https://github.com/Real-Fruit-Snacks/wayback-linker/issues">Issues</a>
+        <a href="https://github.com/Real-Fruit-Snacks/wayback-linker/blob/main/SECURITY.md">Security</a>
+        <a href="https://github.com/Real-Fruit-Snacks/wayback-linker">Source</a>
+      </div>
+    </div>
+  </footer>
+
+  <div class="copy-toast" role="status" aria-live="polite" data-toast>Copied</div>
+
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

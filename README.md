@@ -2,6 +2,8 @@
 
 Wayback Linker is an Obsidian plugin that archives the external links in the active note with the Internet Archive's Wayback Machine and replaces each original link with the archived snapshot URL.
 
+**[Visit the Wayback Linker website](https://real-fruit-snacks.github.io/wayback-linker/)**
+
 [![CI](https://github.com/Real-Fruit-Snacks/wayback-linker/actions/workflows/ci.yml/badge.svg)](https://github.com/Real-Fruit-Snacks/wayback-linker/actions/workflows/ci.yml)
 [![GitHub release](https://img.shields.io/github/v/release/Real-Fruit-Snacks/wayback-linker)](https://github.com/Real-Fruit-Snacks/wayback-linker/releases)
 
