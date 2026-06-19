@@ -858,8 +858,10 @@ class WaybackLinkerSettingTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName("Delay between archive requests")
       .setDesc("Milliseconds to wait between Wayback Machine requests.")
-      .addText((text) =>
-        text
+      .addText((text) => {
+        text.inputEl.type = "number";
+        text.inputEl.min = "0";
+        return text
           .setPlaceholder(String(DEFAULT_SETTINGS.requestDelayMs))
           .setValue(String(this.plugin.settings.requestDelayMs))
           .onChange(async (value) => {
@@ -868,8 +870,8 @@ class WaybackLinkerSettingTab extends PluginSettingTab {
               ? parsed
               : DEFAULT_SETTINGS.requestDelayMs;
             await this.plugin.saveSettings();
-          })
-      );
+          });
+      });
 
     new Setting(containerEl)
       .setName("Archive bare URLs")
@@ -886,8 +888,10 @@ class WaybackLinkerSettingTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName("Maximum wait for fresh captures")
       .setDesc("Seconds to wait for Wayback Machine to finish a new capture before leaving the original link unchanged.")
-      .addText((text) =>
-        text
+      .addText((text) => {
+        text.inputEl.type = "number";
+        text.inputEl.min = "1";
+        return text
           .setPlaceholder(String(DEFAULT_SETTINGS.maxCaptureWaitSeconds))
           .setValue(String(this.plugin.settings.maxCaptureWaitSeconds))
           .onChange(async (value) => {
@@ -896,8 +900,8 @@ class WaybackLinkerSettingTab extends PluginSettingTab {
               ? parsed
               : DEFAULT_SETTINGS.maxCaptureWaitSeconds;
             await this.plugin.saveSettings();
-          })
-      );
+          });
+      });
 
     new Setting(containerEl)
       .setName("Fall back to latest existing snapshot")
@@ -914,8 +918,10 @@ class WaybackLinkerSettingTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName("Throttle retry delay")
       .setDesc("Seconds to wait before retrying when Wayback says active Save Page Now sessions are at the limit.")
-      .addText((text) =>
-        text
+      .addText((text) => {
+        text.inputEl.type = "number";
+        text.inputEl.min = "1";
+        return text
           .setPlaceholder(String(DEFAULT_SETTINGS.throttleRetryDelaySeconds))
           .setValue(String(this.plugin.settings.throttleRetryDelaySeconds))
           .onChange(async (value) => {
@@ -924,14 +930,16 @@ class WaybackLinkerSettingTab extends PluginSettingTab {
               ? parsed
               : DEFAULT_SETTINGS.throttleRetryDelaySeconds;
             await this.plugin.saveSettings();
-          })
-      );
+          });
+      });
 
     new Setting(containerEl)
       .setName("Maximum throttle retries")
       .setDesc("How many times to retry a URL after Wayback reports the active-session limit.")
-      .addText((text) =>
-        text
+      .addText((text) => {
+        text.inputEl.type = "number";
+        text.inputEl.min = "0";
+        return text
           .setPlaceholder(String(DEFAULT_SETTINGS.maxThrottleRetries))
           .setValue(String(this.plugin.settings.maxThrottleRetries))
           .onChange(async (value) => {
@@ -940,8 +948,8 @@ class WaybackLinkerSettingTab extends PluginSettingTab {
               ? parsed
               : DEFAULT_SETTINGS.maxThrottleRetries;
             await this.plugin.saveSettings();
-          })
-      );
+          });
+      });
 
     new Setting(containerEl)
       .setName("Internet Archive access key")
