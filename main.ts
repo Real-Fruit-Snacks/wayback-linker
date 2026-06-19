@@ -21,6 +21,7 @@ interface WaybackLinkerSettings {
   fallbackToLatestSnapshot: boolean;
   throttleRetryDelaySeconds: number;
   maxThrottleRetries: number;
+  debugMode: boolean;
 }
 
 const DEFAULT_SETTINGS: WaybackLinkerSettings = {
@@ -31,7 +32,8 @@ const DEFAULT_SETTINGS: WaybackLinkerSettings = {
   secretKeySecretId: "",
   fallbackToLatestSnapshot: false,
   throttleRetryDelaySeconds: 60,
-  maxThrottleRetries: 3
+  maxThrottleRetries: 3,
+  debugMode: false
 };
 
 interface LinkMatch {
@@ -121,11 +123,13 @@ export default class WaybackLinkerPlugin extends Plugin {
     const file = this.app.workspace.getActiveFile();
 
     if (!file) {
+      logDebug(this.settings, "Open a note before archiving links.");
       new Notice("Open a note before archiving links.");
       return;
     }
 
     if (file.extension !== "md") {
+      logDebug(this.settings, "Wayback Linker only works on Markdown notes.");
       new Notice("Wayback Linker only works on Markdown notes.");
       return;
     }
@@ -133,7 +137,7 @@ export default class WaybackLinkerPlugin extends Plugin {
     try {
       await this.archiveFileLinks(file, this.getActiveEditorForFile(file));
     } catch (error) {
-      console.error(error);
+      logError(this.settings, "Wayback Linker failed", error);
       new Notice(`Wayback Linker failed: ${getErrorMessage(error)}`, 10000);
     }
   }
@@ -148,6 +152,7 @@ export default class WaybackLinkerPlugin extends Plugin {
     const matches = findExternalLinks(content, this.settings.archiveBareUrls);
 
     if (matches.length === 0) {
+      logDebug(this.settings, "No external HTTP links found in this note.");
       new Notice("No external HTTP links found in this note.");
       return;
     }
@@ -198,10 +203,9 @@ export default class WaybackLinkerPlugin extends Plugin {
         .map((result) => `${result.originalUrl}: ${result.error}`)
         .join("\n");
 
-      new Notice(
-        failures ? `No links replaced. Failures:\n${failures}` : "No links were archived.",
-        15000
-      );
+      const msg = failures ? `No links replaced. Failures:\n${failures}` : "No links were archived.";
+      logDebug(this.settings, msg);
+      new Notice(msg, 15000);
       progress.finish();
       return;
     }
@@ -233,7 +237,9 @@ export default class WaybackLinkerPlugin extends Plugin {
     );
 
     if (!result.archivedUrl) {
-      new Notice(`Wayback Linker failed: ${result.error ?? "No archived URL returned."}`, 10000);
+      const errorMsg = result.error ?? "No archived URL returned.";
+      logError(this.settings, `Wayback Linker failed: ${errorMsg}`);
+      new Notice(`Wayback Linker failed: ${errorMsg}`, 10000);
       return;
     }
 
@@ -242,6 +248,7 @@ export default class WaybackLinkerPlugin extends Plugin {
     const expectedTarget = currentContentFromLink(link);
 
     if (currentTarget !== expectedTarget) {
+      logDebug(this.settings, `The link changed before Wayback Linker could replace it. Expected: ${expectedTarget}, Actual: ${currentTarget}`);
       new Notice("The link changed before Wayback Linker could replace it. Try again.", 10000);
       return;
     }
@@ -474,14 +481,17 @@ async function archiveUrl(
     }
 
     if (!capture.archivedUrl) {
+      const errorMsg = capture.error ?? "Wayback did not return a fresh archived URL.";
+      logError(settings, `Capture failed for ${url}: ${errorMsg}`);
       return {
         originalUrl: url,
-        error: capture.error ?? "Wayback did not return a fresh archived URL."
+        error: errorMsg
       };
     }
 
     return { originalUrl: url, archivedUrl: capture.archivedUrl };
   } catch (error) {
+    logError(settings, `Exception while archiving ${url}`, error);
     return { originalUrl: url, error: getErrorMessage(error) };
   }
 }
@@ -769,6 +779,22 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+export function logDebug(settings: WaybackLinkerSettings, message: string, ...args: any[]) {
+  if (settings.debugMode) {
+    console.log(`[Wayback Linker] ${message}`, ...args);
+  }
+}
+
+export function logError(settings: WaybackLinkerSettings, message: string, error?: unknown) {
+  if (settings.debugMode) {
+    if (error) {
+      console.error(`[Wayback Linker] ${message}`, error);
+    } else {
+      console.error(`[Wayback Linker] ${message}`);
+    }
+  }
+}
+
 function getString(record: Record<string, unknown>, key: string) {
   const value = record[key];
   return typeof value === "string" ? value : undefined;
@@ -946,6 +972,18 @@ class WaybackLinkerSettingTab extends PluginSettingTab {
         });
         return comp;
       });
+
+    new Setting(containerEl)
+      .setName("Debug Mode")
+      .setDesc("Log all errors and internal issues to the developer console.")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.debugMode)
+          .onChange(async (value) => {
+            this.plugin.settings.debugMode = value;
+            await this.plugin.saveSettings();
+          })
+      );
   }
 }
 
