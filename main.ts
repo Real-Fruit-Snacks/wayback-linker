@@ -68,8 +68,9 @@ interface SecretStorageLike {
 }
 
 const HTTP_URL_PATTERN = /^https?:\/\//i;
-const ACCESS_KEY_SECRET_ID = "wayback-linker-access-key";
-const SECRET_KEY_SECRET_ID = "wayback-linker-secret-key";
+const INTERNET_ARCHIVE_S3_API_ENDPOINT = "https://s3.us.archive.org";
+const WAYBACK_MACHINE_SNAPSHOT_URL_PREFIX = "https://web.archive.org/web/";
+const WAYBACK_MACHINE_CDX_API_ENDPOINT = "https://web.archive.org/cdx/search/cdx";
 
 export default class WaybackLinkerPlugin extends Plugin {
   settings: WaybackLinkerSettings;
@@ -108,28 +109,8 @@ export default class WaybackLinkerPlugin extends Plugin {
   }
 
   async loadSettings() {
-    const saved = await this.loadData() as Partial<WaybackLinkerSettings> & {
-      accessKey?: string;
-      secretKey?: string;
-      rememberSecretKey?: boolean;
-    } | null;
-    const {
-      accessKey: legacyAccessKey = "",
-      secretKey: legacySecretKey = "",
-      rememberSecretKey: _rememberSecretKey,
-      ...savedSettings
-    } = saved ?? {};
-    const credentialRefs = migrateLegacyCredentials(this.app.secretStorage, {
-      accessKeySecretId: savedSettings.accessKeySecretId,
-      secretKeySecretId: savedSettings.secretKeySecretId,
-      accessKey: legacyAccessKey,
-      secretKey: legacySecretKey
-    });
-
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, savedSettings, credentialRefs);
-
-    // Re-save without legacy credential fields after migration to SecretStorage.
-    await this.saveSettings();
+    const saved = await this.loadData() as Partial<WaybackLinkerSettings> | null;
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, saved ?? {});
   }
 
   async saveSettings() {
@@ -791,41 +772,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function getString(record: Record<string, unknown>, key: string) {
   const value = record[key];
   return typeof value === "string" ? value : undefined;
-}
-
-export function migrateLegacyCredentials(
-  secretStorage: SecretStorageLike,
-  legacy: {
-    accessKeySecretId?: string;
-    secretKeySecretId?: string;
-    accessKey?: string;
-    secretKey?: string;
-  }
-) {
-  const defaultAccessKeyExists = secretStorage.getSecret(ACCESS_KEY_SECRET_ID) !== null;
-  const defaultSecretKeyExists = secretStorage.getSecret(SECRET_KEY_SECRET_ID) !== null;
-  const accessKeySecretId = legacy.accessKeySecretId ??
-    (legacy.accessKey || defaultAccessKeyExists ? ACCESS_KEY_SECRET_ID : "");
-  const secretKeySecretId = legacy.secretKeySecretId ??
-    (legacy.secretKey || defaultSecretKeyExists ? SECRET_KEY_SECRET_ID : "");
-
-  if (
-    accessKeySecretId &&
-    secretStorage.getSecret(accessKeySecretId) === null &&
-    legacy.accessKey
-  ) {
-    secretStorage.setSecret(accessKeySecretId, legacy.accessKey);
-  }
-
-  if (
-    secretKeySecretId &&
-    secretStorage.getSecret(secretKeySecretId) === null &&
-    legacy.secretKey
-  ) {
-    secretStorage.setSecret(secretKeySecretId, legacy.secretKey);
-  }
-
-  return { accessKeySecretId, secretKeySecretId };
 }
 
 export function replacementsFromArchivedUrls(

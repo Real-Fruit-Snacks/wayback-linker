@@ -8,54 +8,9 @@ import {
   findExternalLinks,
   isFreshTimestamp,
   latestAvailableSnapshotFromCdxApi,
-  migrateLegacyCredentials,
   replacementsFromArchivedUrls,
   shouldArchiveUrl
 } from "./main.ts";
-
-describe("credential migration", () => {
-  it("moves legacy credentials into Obsidian SecretStorage", () => {
-    const secrets = new Map<string, string>();
-    const storage = {
-      getSecret: (id: string) => secrets.get(id) ?? null,
-      setSecret: (id: string, value: string) => secrets.set(id, value)
-    };
-
-    const credentials = migrateLegacyCredentials(storage, {
-      accessKey: "legacy-access",
-      secretKey: "legacy-secret"
-    });
-
-    expect(credentials).toEqual({
-      accessKeySecretId: "wayback-linker-access-key",
-      secretKeySecretId: "wayback-linker-secret-key"
-    });
-    expect(Array.from(secrets.values())).toEqual(["legacy-access", "legacy-secret"]);
-  });
-
-  it("prefers existing keychain credentials over legacy plugin data", () => {
-    const secrets = new Map<string, string>([
-      ["wayback-linker-access-key", "stored-access"],
-      ["wayback-linker-secret-key", "stored-secret"]
-    ]);
-    const setSecret = vi.fn();
-    const storage = {
-      getSecret: (id: string) => secrets.get(id) ?? null,
-      setSecret
-    };
-
-    expect(migrateLegacyCredentials(storage, {
-      accessKeySecretId: "wayback-linker-access-key",
-      secretKeySecretId: "wayback-linker-secret-key",
-      accessKey: "legacy-access",
-      secretKey: "legacy-secret"
-    })).toEqual({
-      accessKeySecretId: "wayback-linker-access-key",
-      secretKeySecretId: "wayback-linker-secret-key"
-    });
-    expect(setSecret).not.toHaveBeenCalled();
-  });
-});
 
 describe("link discovery", () => {
   it("finds markdown links, autolinks, and bare URLs while skipping images and Wayback URLs", () => {
