@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wayback Linker - Obsidian Plugin manual page</title>
+    <meta name="description" content="Man page for Wayback Linker, an Obsidian plugin to archive external links.">
+    <!-- Minimalist Monospace -->
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="man-page">
+        <header class="man-header">
+            <span class="left">WAYBACK-LINKER(1)</span>
+            <span class="center">Obsidian Plugins</span>
+            <span class="right">WAYBACK-LINKER(1)</span>
+        </header>
+
+        <section class="man-section">
+            <h2>NAME</h2>
+            <p class="indent"><strong>Wayback Linker</strong> - archive external links in your active note with the Wayback Machine.</p>
+        </section>
+
+        <section class="man-section">
+            <h2>SYNOPSIS</h2>
+            <p class="indent"><strong>Obsidian Command Palette</strong> &gt; <strong>Wayback Linker: Process active note</strong></p>
+        </section>
+
+        <section class="man-section">
+            <h2>DESCRIPTION</h2>
+            <p class="indent">
+                <strong>Wayback Linker</strong> is an Obsidian plugin that automatically archives external links in your active note using the Internet Archive's Wayback Machine. It seamlessly replaces each original link with the newly archived snapshot URL, ensuring your links never suffer from link rot.
+            </p>
+        </section>
+
+        <section class="man-section">
+            <h2>FEATURES</h2>
+            <dl class="indent options-list">
+                <dt><strong>Automated Archiving</strong></dt>
+                <dd>Processes every external HTTP/HTTPS link in the active Markdown note.</dd>
+                
+                <dt><strong>Save Page Now Integration</strong></dt>
+                <dd>Sends URLs directly to the Wayback Machine's capture endpoint.</dd>
+                
+                <dt><strong>Smart Replacement</strong></dt>
+                <dd>Replaces links only when a fresh snapshot URL is successfully generated.</dd>
+
+                <dt><strong>Fallback Support</strong></dt>
+                <dd>Optionally falls back to the most recent existing snapshot if a fresh capture fails or times out.</dd>
+            </dl>
+        </section>
+
+        <section class="man-section">
+            <h2>INSTALLATION</h2>
+            <div class="indent">
+                <p>To install Wayback Linker via Obsidian BRAT:</p>
+                <pre><code>Obsidian BRAT Settings > Add Beta plugin
+Enter: Real-Fruit-Snacks/wayback-linker</code></pre>
+                <button class="man-btn copy-btn" data-clipboard="Real-Fruit-Snacks/wayback-linker">COPY BRAT PATH</button>
+            </div>
+        </section>
+
+        <section class="man-section">
+            <h2>AUTHOR</h2>
+            <p class="indent">Written by Real-Fruit-Snacks.</p>
+        </section>
+
+        <section class="man-section">
+            <h2>SEE ALSO</h2>
+            <p class="indent">
+                <a href="https://github.com/Real-Fruit-Snacks/wayback-linker" target="_blank">GitHub Repository</a>, 
+                <a href="https://github.com/Real-Fruit-Snacks/wayback-linker/issues" target="_blank">Issue Tracker</a>
+            </p>
+        </section>
+        
+        <section class="man-section disclaimer">
+            <p class="indent"><em>WARNING: For educational and authorized testing purposes only.</em></p>
+        </section>
+
+        <footer class="man-footer">
+            <span class="left">wayback-linker 0.2.3</span>
+            <span class="center">2026-06-19</span>
+            <span class="right">WAYBACK-LINKER(1)</span>
+        </footer>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
