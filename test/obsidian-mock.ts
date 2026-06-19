@@ -36,4 +36,10 @@ export class PluginSettingTab {
 
 export class Setting {}
 
+export class SecretComponent {
+  constructor(_app: unknown, _containerEl: unknown) {}
+  setValue(_value: string) { return this; }
+  onChange(_callback: (value: string) => unknown) { return this; }
+}
+
 export const requestUrl = vi.fn();

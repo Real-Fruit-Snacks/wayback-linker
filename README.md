@@ -31,11 +31,12 @@ Fresh Save Page Now captures may require an authenticated Internet Archive accou
 2. Open `https://archive.org/account/s3.php`.
 3. Copy your access key and secret key.
 4. In Obsidian, open **Settings -> Wayback Linker**.
-5. Paste the keys into **Internet Archive access key** and **Internet Archive secret key**.
+5. For **Internet Archive access key**, use the secret selector to create/select a keychain entry containing the access key.
+6. Repeat for **Internet Archive secret key** with a separate keychain entry.
 
-The secret key is session-only by default and is not saved to your vault. If you enable **Remember secret key**, it will be stored in this plugin's local Obsidian data file, which may be inside your vault.
+Use the native secret selectors in Wayback Linker settings to select or create keychain entries for both credentials. Only the selected secret IDs are written to the plugin's `data.json`; credential values remain in Obsidian's secure keychain. Upgrading from version 0.1.0 automatically migrates any previously saved credentials into keychain entries and removes their values from plugin data.
 
-If you publish or push your vault to GitHub, keep **Remember secret key** off and add these patterns to your vault's `.gitignore`:
+Wayback Linker 0.2.0 requires Obsidian 1.11.4 or newer. If you publish or push your vault to GitHub, it is still good practice to exclude plugin data:
 
 ```gitignore
 .obsidian/plugins/wayback-linker/data.json
@@ -67,7 +68,7 @@ npm run dev
 
 1. Update the version in `manifest.json`, `package.json`, and `versions.json`.
 2. Commit the version change.
-3. Tag the commit with the exact version, for example `0.1.0`.
+3. Tag the commit with the exact version, for example `0.2.0`.
 4. Push the tag. GitHub Actions will run tests, build the plugin, and attach `main.js`, `manifest.json`, and `styles.css` to the release.
 
 ## Notes

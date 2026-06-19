@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0 - 2026-06-18
+
+- Store Internet Archive access and secret keys in Obsidian's secure keychain.
+- Automatically migrate legacy credentials out of plugin `data.json`.
+- Remove the legacy **Remember secret key** setting.
+- Require Obsidian 1.11.4 or newer for the SecretStorage API.
+
 ## 0.1.0 - 2026-06-18
 
 - Archive external links in the active Obsidian note.

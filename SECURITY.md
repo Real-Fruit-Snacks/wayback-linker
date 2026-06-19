@@ -2,7 +2,9 @@
 
 ## Credentials
 
-Wayback Linker can authenticate to Internet Archive Save Page Now with an access key and secret key. The secret key is session-only by default. Enabling **Remember secret key** stores it in the plugin's Obsidian `data.json` file.
+Wayback Linker can authenticate to Internet Archive Save Page Now with an access key and secret key. Version 0.2.0 and newer store both credentials through Obsidian's secure `SecretStorage` keychain API. They are not written to the plugin's `data.json` file.
+
+When upgrading from version 0.1.0, saved legacy credentials are migrated into the keychain and removed from plugin data.
 
 Never commit or publish:
 

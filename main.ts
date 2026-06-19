@@ -6,6 +6,7 @@ import {
   Notice,
   Plugin,
   PluginSettingTab,
+  SecretComponent,
   Setting,
   TFile,
   requestUrl
@@ -15,9 +16,8 @@ interface WaybackLinkerSettings {
   requestDelayMs: number;
   archiveBareUrls: boolean;
   maxCaptureWaitSeconds: number;
-  accessKey: string;
-  secretKey: string;
-  rememberSecretKey: boolean;
+  accessKeySecretId: string;
+  secretKeySecretId: string;
   fallbackToLatestSnapshot: boolean;
   throttleRetryDelaySeconds: number;
   maxThrottleRetries: number;
@@ -27,9 +27,8 @@ const DEFAULT_SETTINGS: WaybackLinkerSettings = {
   requestDelayMs: 1500,
   archiveBareUrls: true,
   maxCaptureWaitSeconds: 90,
-  accessKey: "",
-  secretKey: "",
-  rememberSecretKey: false,
+  accessKeySecretId: "",
+  secretKeySecretId: "",
   fallbackToLatestSnapshot: false,
   throttleRetryDelaySeconds: 60,
   maxThrottleRetries: 3
@@ -63,7 +62,14 @@ interface ArchiveProgressItem {
   message: string;
 }
 
+interface SecretStorageLike {
+  getSecret(id: string): string | null;
+  setSecret(id: string, secret: string): void;
+}
+
 const HTTP_URL_PATTERN = /^https?:\/\//i;
+const ACCESS_KEY_SECRET_ID = "wayback-linker-access-key";
+const SECRET_KEY_SECRET_ID = "wayback-linker-secret-key";
 
 export default class WaybackLinkerPlugin extends Plugin {
   settings: WaybackLinkerSettings;
@@ -102,14 +108,32 @@ export default class WaybackLinkerPlugin extends Plugin {
   }
 
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    const saved = await this.loadData() as Partial<WaybackLinkerSettings> & {
+      accessKey?: string;
+      secretKey?: string;
+      rememberSecretKey?: boolean;
+    } | null;
+    const {
+      accessKey: legacyAccessKey = "",
+      secretKey: legacySecretKey = "",
+      rememberSecretKey: _rememberSecretKey,
+      ...savedSettings
+    } = saved ?? {};
+    const credentialRefs = migrateLegacyCredentials(this.app.secretStorage, {
+      accessKeySecretId: savedSettings.accessKeySecretId,
+      secretKeySecretId: savedSettings.secretKeySecretId,
+      accessKey: legacyAccessKey,
+      secretKey: legacySecretKey
+    });
+
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, savedSettings, credentialRefs);
+
+    // Re-save without legacy credential fields after migration to SecretStorage.
+    await this.saveSettings();
   }
 
   async saveSettings() {
-    await this.saveData({
-      ...this.settings,
-      secretKey: this.settings.rememberSecretKey ? this.settings.secretKey : ""
-    });
+    await this.saveData(this.settings);
   }
 
   private async archiveActiveFileLinks() {
@@ -165,7 +189,7 @@ export default class WaybackLinkerPlugin extends Plugin {
         progress.markWorking(index);
         new Notice(`Archiving ${index + 1}/${urls.length}: ${url}`, 3500);
 
-        const result = await archiveUrl(url, this.settings, (message) => {
+        const result = await archiveUrl(url, this.settings, this.app.secretStorage, (message) => {
           progress.updateMessage(index, message);
           status.setText(`Wayback ${index + 1}/${urls.length}: waiting`);
         });
@@ -221,7 +245,11 @@ export default class WaybackLinkerPlugin extends Plugin {
   private async archiveEditorLink(editor: Editor, link: LinkMatch) {
     new Notice(`Archiving: ${link.url}`, 3500);
 
-    const result = await archiveUrl(normalizeUrl(link.url), this.settings);
+    const result = await archiveUrl(
+      normalizeUrl(link.url),
+      this.settings,
+      this.app.secretStorage
+    );
 
     if (!result.archivedUrl) {
       new Notice(`Wayback Linker failed: ${result.error ?? "No archived URL returned."}`, 10000);
@@ -410,9 +438,10 @@ function trimTrailingPunctuation(url: string) {
 async function archiveUrl(
   url: string,
   settings: WaybackLinkerSettings,
+  secretStorage: SecretStorageLike,
   onProgress?: (message: string) => void
 ): Promise<ArchiveResult> {
-  const headers = waybackHeaders(settings);
+  const headers = waybackHeaders(settings, secretStorage);
 
   try {
     let capture: CaptureResult = {};
@@ -559,14 +588,21 @@ function isActiveSessionThrottle(message: string | undefined) {
   return Boolean(message?.toLowerCase().includes("limit of active save page now sessions"));
 }
 
-function waybackHeaders(settings: WaybackLinkerSettings) {
+function waybackHeaders(settings: WaybackLinkerSettings, secretStorage: SecretStorageLike) {
   const headers: Record<string, string> = {
     Accept: "application/json",
     "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
   };
 
-  if (settings.accessKey && settings.secretKey) {
-    headers.Authorization = `LOW ${settings.accessKey}:${settings.secretKey}`;
+  const accessKey = settings.accessKeySecretId
+    ? secretStorage.getSecret(settings.accessKeySecretId) ?? ""
+    : "";
+  const secretKey = settings.secretKeySecretId
+    ? secretStorage.getSecret(settings.secretKeySecretId) ?? ""
+    : "";
+
+  if (accessKey && secretKey) {
+    headers.Authorization = `LOW ${accessKey}:${secretKey}`;
   }
 
   return headers;
@@ -757,6 +793,41 @@ function getString(record: Record<string, unknown>, key: string) {
   return typeof value === "string" ? value : undefined;
 }
 
+export function migrateLegacyCredentials(
+  secretStorage: SecretStorageLike,
+  legacy: {
+    accessKeySecretId?: string;
+    secretKeySecretId?: string;
+    accessKey?: string;
+    secretKey?: string;
+  }
+) {
+  const defaultAccessKeyExists = secretStorage.getSecret(ACCESS_KEY_SECRET_ID) !== null;
+  const defaultSecretKeyExists = secretStorage.getSecret(SECRET_KEY_SECRET_ID) !== null;
+  const accessKeySecretId = legacy.accessKeySecretId ??
+    (legacy.accessKey || defaultAccessKeyExists ? ACCESS_KEY_SECRET_ID : "");
+  const secretKeySecretId = legacy.secretKeySecretId ??
+    (legacy.secretKey || defaultSecretKeyExists ? SECRET_KEY_SECRET_ID : "");
+
+  if (
+    accessKeySecretId &&
+    secretStorage.getSecret(accessKeySecretId) === null &&
+    legacy.accessKey
+  ) {
+    secretStorage.setSecret(accessKeySecretId, legacy.accessKey);
+  }
+
+  if (
+    secretKeySecretId &&
+    secretStorage.getSecret(secretKeySecretId) === null &&
+    legacy.secretKey
+  ) {
+    secretStorage.setSecret(secretKeySecretId, legacy.secretKey);
+  }
+
+  return { accessKeySecretId, secretKeySecretId };
+}
+
 export function replacementsFromArchivedUrls(
   content: string,
   archivedByUrl: Map<string, ArchiveResult>,
@@ -902,39 +973,24 @@ class WaybackLinkerSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Internet Archive access key")
-      .setDesc("Used for authenticated Save Page Now requests. Get it from archive.org/account/s3.php.")
-      .addText((text) =>
-        text
-          .setPlaceholder("Access key")
-          .setValue(this.plugin.settings.accessKey)
+      .setDesc("Select or create an Obsidian keychain secret containing the access key from archive.org/account/s3.php.")
+      .addComponent((containerEl) =>
+        new SecretComponent(this.app, containerEl)
+          .setValue(this.plugin.settings.accessKeySecretId)
           .onChange(async (value) => {
-            this.plugin.settings.accessKey = value.trim();
+            this.plugin.settings.accessKeySecretId = value;
             await this.plugin.saveSettings();
           })
       );
 
     new Setting(containerEl)
       .setName("Internet Archive secret key")
-      .setDesc("Used for this Obsidian session. By default it is not saved to your vault.")
-      .addText((text) => {
-        text.inputEl.type = "password";
-        text
-          .setPlaceholder("Secret key")
-          .setValue(this.plugin.settings.secretKey)
+      .setDesc("Select or create an Obsidian keychain secret containing the Internet Archive secret key.")
+      .addComponent((containerEl) =>
+        new SecretComponent(this.app, containerEl)
+          .setValue(this.plugin.settings.secretKeySecretId)
           .onChange(async (value) => {
-            this.plugin.settings.secretKey = value.trim();
-            await this.plugin.saveSettings();
-          });
-      });
-
-    new Setting(containerEl)
-      .setName("Remember secret key")
-      .setDesc("Saves the secret key in this plugin's Obsidian data file. Leave off if your vault might be synced or published.")
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.rememberSecretKey)
-          .onChange(async (value) => {
-            this.plugin.settings.rememberSecretKey = value;
+            this.plugin.settings.secretKeySecretId = value;
             await this.plugin.saveSettings();
           })
       );
