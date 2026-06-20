@@ -1,0 +1,35 @@
+{
+  "name": "obsidian-wayback-linker",
+  "version": "0.2.3",
+  "description": "Archive external links in the active Obsidian note with the Wayback Machine and replace them with snapshot URLs.",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "obsidian",
+    "wayback",
+    "internet-archive"
+  ],
+  "author": "Real-Fruit-Snacks",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Real-Fruit-Snacks/wayback-linker.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Real-Fruit-Snacks/wayback-linker/issues"
+  },
+  "homepage": "https://real-fruit-snacks.github.io/wayback-linker/",
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "builtin-modules": "^3.3.0",
+    "esbuild": "^0.28.1",
+    "obsidian": "^1.5.12",
+    "typescript": "^5.4.2",
+    "vitest": "^4.1.9"
+  }
+}

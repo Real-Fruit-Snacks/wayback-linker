@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Wayback Linker -- Wayback Linker automatically archives all outgoing links from a webpage to the Internet Archive as you browse.">
+    <meta name="keywords" content="Wayback Linker, plugin, Wayback Linker, sub vault, productivity, knowledge management, note taking">
+    <title>Wayback Linker -- Wayback Linker Plugin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <!-- ==================== NAV ==================== -->
+    <nav class="nav" id="nav">
+        <div class="nav-inner">
+            <a href="#" class="nav-logo">
+                <svg class="nav-logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><line x1="12" y1="11" x2="12" y2="17"></line><line x1="9" y1="14" x2="15" y2="14"></line></svg>
+                Wayback Linker
+            </a>
+            <div class="nav-links">
+                <a href="#features">Features</a>
+                <a href="#how-it-works">How It Works</a>
+                <a href="#install">Install</a>
+                <a href="https://github.com/Real-Fruit-Snacks/wayback-linker" class="nav-github" target="_blank" rel="noopener">
+                    <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ==================== HERO ==================== -->
+    <section class="hero">
+        <div class="hero-glow hero-glow--1"></div>
+        <div class="hero-glow hero-glow--2"></div>
+        <div class="hero-grid"></div>
+
+        <div class="hero-content">
+            <div class="hero-badge">Open Source &middot; MIT License</div>
+            <h1 class="hero-title">
+                Obsidian plugin for automated Wayback Machine archival.
+            </h1>
+            <p class="hero-subtitle">
+                Wayback Linker automatically archives all outgoing links from your active note to the Internet Archive, protecting you from link rot.
+            </p>
+            <div class="hero-actions">
+                <a href="https://github.com/Real-Fruit-Snacks/wayback-linker/releases/latest" class="btn btn--primary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Download
+                </a>
+                <a href="https://github.com/Real-Fruit-Snacks/wayback-linker" class="btn btn--ghost" target="_blank" rel="noopener">
+                    View on GitHub
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
+                </a>
+            </div>
+        </div>
+
+        <!-- Floating mock UI cards -->
+        <div class="hero-visual">
+            <div class="mock-window">
+                <div class="mock-titlebar">
+                    <span class="mock-dot mock-dot--red"></span>
+                    <span class="mock-dot mock-dot--yellow"></span>
+                    <span class="mock-dot mock-dot--green"></span>
+                    <span class="mock-titlebar-text">Wayback Linker</span>
+                </div>
+                <div class="mock-body">
+                    <div class="mock-sidebar">
+                        <div class="mock-file">daily-notes.md</div>
+                        <div class="mock-file mock-file--nested">research.md</div>
+                        <div class="mock-file mock-file--active">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                            citations.md
+                        </div>
+                    </div>
+                    <div class="mock-editor">
+                        <div class="mock-editor-line mock-editor-line--heading"># Citations</div>
+                        <div class="mock-editor-line">Check out this source:</div>
+                        <div class="mock-editor-line">
+                            <span style="color: var(--blue);">[Original Link]</span><span style="color: var(--sub0);">(https://example.com)</span>
+                        </div>
+                        <div class="mock-editor-line mock-editor-line--empty"></div>
+                        <div class="mock-editor-line" style="color: var(--green); font-size: 0.9em;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="vertical-align: middle;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                            Archived successfully via Save Page Now
+                        </div>
+                        <div class="mock-editor-line">
+                            <span style="color: var(--blue);">[Original Link]</span><span style="color: var(--sub0);">(https://web.archive.org/web/2026.../https://example.com)</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mock-statusbar">
+                    <span class="mock-statusbar-vault">Archive active note links with Wayback Machine</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== FEATURES ==================== -->
+    <section class="features" id="features">
+        <div class="section-inner">
+            <div class="section-header">
+                <p class="section-label">Capabilities</p>
+                <h2 class="section-title">End link rot permanently.</h2>
+                <p class="section-desc">Wayback Linker communicates directly with the Internet Archive to ensure the sources in your notes never disappear.</p>
+            </div>
+
+            <div class="feature-grid">
+                <div class="feature-card" data-reveal>
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                    </div>
+                    <h3>Automated Archiving</h3>
+                    <p>Processes every external <code>http://</code> and <code>https://</code> link in the active Markdown note with a single command.</p>
+                </div>
+
+                <div class="feature-card" data-reveal>
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    </div>
+                    <h3>Save Page Now Integration</h3>
+                    <p>Sends URLs directly to the Wayback Machine's capture endpoint for fresh snapshots.</p>
+                </div>
+
+                <div class="feature-card" data-reveal>
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    </div>
+                    <h3>Smart Replacement</h3>
+                    <p>Replaces links only when a fresh snapshot URL is successfully generated. Optionally falls back to older snapshots if needed.</p>
+                </div>
+
+                <div class="feature-card" data-reveal>
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    </div>
+                    <h3>Secure Credentials</h3>
+                    <p>Utilizes Obsidian's native secure keychain to store your Internet Archive API keys safely.</p>
+                </div>
+
+                <div class="feature-card" data-reveal>
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                    </div>
+                    <h3>Fallback Support</h3>
+                    <p>Optionally falls back to the most recent existing snapshot if a fresh capture fails or times out, ensuring a working link is always preserved.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== HOW IT WORKS ==================== -->
+    <section class="how" id="how-it-works">
+        <div class="section-inner">
+            <div class="section-header">
+                <p class="section-label">Workflow</p>
+                <h2 class="section-title">One click. Zero dead links.</h2>
+            </div>
+
+            <div class="steps-timeline">
+                <div class="step" data-reveal>
+                    <div class="step-marker">
+                        <span class="step-num">1</span>
+                        <div class="step-line"></div>
+                    </div>
+                    <div class="step-content">
+                        <h3>Trigger the command</h3>
+                        <p>Click the ribbon button or run <strong>Archive active note links with Wayback Machine</strong> from the command palette.</p>
+                    </div>
+                </div>
+
+                <div class="step" data-reveal>
+                    <div class="step-marker">
+                        <span class="step-num">2</span>
+                        <div class="step-line"></div>
+                    </div>
+                    <div class="step-content">
+                        <h3>Background Capture</h3>
+                        <p>The plugin securely authenticates with the Internet Archive and fires off a Save Page Now request for every external link found in the note.</p>
+                    </div>
+                </div>
+
+                <div class="step" data-reveal>
+                    <div class="step-marker">
+                        <span class="step-num">3</span>
+                    </div>
+                    <div class="step-content">
+                        <h3>Inline Replacement</h3>
+                        <p>As soon as a snapshot is confirmed, the original URL in your markdown file is safely replaced with the permanent <code>web.archive.org</code> snapshot URL.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== INSTALL ==================== -->
+    <section class="install" id="install">
+        <div class="section-inner">
+            <div class="section-header">
+                <p class="section-label">Get Started</p>
+                <h2 class="section-title">Install in under a minute.</h2>
+            </div>
+
+            <div class="install-grid">
+                <div class="install-card" data-reveal>
+                    <div class="install-card-header">
+                        <span class="install-card-label">Recommended</span>
+                        <h3>Community Plugins</h3>
+                    </div>
+                    <ol>
+                        <li>Open Obsidian Settings and navigate to <strong>Community Plugins</strong>.</li>
+                        <li>Browse and search for <strong>Wayback Linker</strong>.</li>
+                        <li>Install and Enable the plugin.</li>
+                    </ol>
+                </div>
+
+                <div class="install-card" data-reveal>
+                    <div class="install-card-header">
+                        <h3>Manual</h3>
+                    </div>
+                    <ol>
+                        <li>Download <code>main.js</code>, <code>manifest.json</code>, and <code>styles.css</code> from the <a href="https://github.com/Real-Fruit-Snacks/wayback-linker/releases/latest" target="_blank" rel="noopener">latest release</a>.</li>
+                        <li>Create <code>.obsidian/plugins/wayback-linker/</code> inside your vault.</li>
+                        <li>Place the files inside that folder and reload Obsidian.</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== FOOTER ==================== -->
+    <footer class="footer">
+        <div class="section-inner footer-inner">
+            <div class="footer-left">
+                <svg class="footer-logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+                <span>Wayback Linker</span>
+            </div>
+            <p class="footer-copy">Built for <a href="https://obsidian.md" target="_blank" rel="noopener">Obsidian</a>. Open source under the MIT License. Created by <a href="https://github.com/Real-Fruit-Snacks" target="_blank" rel="noopener">Real-Fruit-Snacks</a>.</p>
+        </div>
+    </footer>
+
+    <script>
+        // ---- Sticky nav ----
+        const nav = document.getElementById('nav');
+        window.addEventListener('scroll', () => {
+            nav.classList.toggle('nav--scrolled', window.scrollY > 40);
+        });
+
+        // ---- Scroll reveal ----
+        const revealEls = document.querySelectorAll('[data-reveal]');
+        const revealObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('revealed');
+                    revealObserver.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.15 });
+        revealEls.forEach(el => revealObserver.observe(el));
+
+        // ---- Smooth anchor scroll ----
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+
+
+

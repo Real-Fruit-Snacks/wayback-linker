@@ -1,0 +1,107 @@
+.wayback-status-item {
+  cursor: pointer;
+}
+
+.wayback-status-item:hover {
+  color: var(--text-accent);
+}
+
+.modal.wayback-progress-shell {
+  width: min(760px, 92vw);
+  max-width: 92vw;
+  overflow-x: hidden;
+}
+
+.modal.wayback-progress-shell .modal-content {
+  overflow-x: hidden;
+}
+
+.wayback-progress-modal {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.wayback-progress-summary {
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.wayback-progress-current {
+  margin-bottom: 12px;
+  color: var(--text-muted);
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.wayback-progress-list {
+  width: 100%;
+  max-width: 100%;
+  max-height: 52vh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+}
+
+.wayback-progress-row {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 10px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.wayback-progress-row:last-child {
+  border-bottom: 0;
+}
+
+.wayback-progress-state {
+  font-size: var(--font-ui-smaller);
+  font-weight: 700;
+  min-width: 0;
+}
+
+.wayback-progress-detail {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.wayback-progress-url,
+.wayback-progress-message {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+}
+
+.wayback-progress-message {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.wayback-progress-working .wayback-progress-state {
+  color: var(--text-accent);
+}
+
+.wayback-progress-success .wayback-progress-state {
+  color: var(--color-green);
+}
+
+.wayback-progress-fallback .wayback-progress-state {
+  color: var(--color-orange);
+}
+
+.wayback-progress-failed .wayback-progress-state {
+  color: var(--color-red);
+}
