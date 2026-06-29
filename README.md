@@ -5,7 +5,7 @@
   **Archive external links in your active note or whole vault with the Wayback Machine.**
 
   [![License: MIT](https://img.shields.io/badge/License-MIT-cba6f7.svg)](https://opensource.org/licenses/MIT)
-  [![Version](https://img.shields.io/badge/version-0.2.3-89b4fa)](https://github.com/Real-Fruit-Snacks/wayback-linker/releases)
+  [![Version](https://img.shields.io/badge/version-1.0.2-89b4fa)](https://github.com/Real-Fruit-Snacks/wayback-linker/releases)
   
   [Documentation](https://Real-Fruit-Snacks.github.io/wayback-linker) • [Report Issue](https://github.com/Real-Fruit-Snacks/wayback-linker/issues) • [Request Feature](https://github.com/Real-Fruit-Snacks/wayback-linker/issues)
 

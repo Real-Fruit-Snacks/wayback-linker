@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.2 - 2026-06-29
+
+- Add **Archive all vault links with Wayback Machine** command palette action.
+- Scan every Markdown note, confirm the vault-wide scope, and archive each unique URL once before replacing successful links across the vault.
+- Document the vault-wide command in the README and GitHub Pages site.
+
 ## 0.2.0 - 2026-06-18
 
 - Store Internet Archive access and secret keys in Obsidian's secure keychain.

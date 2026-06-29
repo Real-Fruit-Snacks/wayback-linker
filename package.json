@@ -1,6 +1,6 @@
 {
   "name": "obsidian-wayback-linker",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Archive external links in the active Obsidian note with the Wayback Machine and replace them with snapshot URLs.",
   "main": "main.js",
   "scripts": {
