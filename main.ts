@@ -90,6 +90,12 @@ export default class WaybackLinkerPlugin extends Plugin {
       callback: () => void this.archiveActiveFileLinks()
     });
 
+    this.addCommand({
+      id: "archive-vault-links",
+      name: "Archive all vault links with Wayback Machine",
+      callback: () => void this.archiveVaultLinks()
+    });
+
     this.registerEvent(
       this.app.workspace.on("editor-menu", (menu, editor) => {
         const link = findLinkUnderEditorCursor(editor, this.settings.archiveBareUrls);
@@ -147,6 +153,101 @@ export default class WaybackLinkerPlugin extends Plugin {
     return view?.file === file ? view.editor : undefined;
   }
 
+  private async archiveVaultLinks() {
+    try {
+      new Notice("Wayback Linker is scanning the vault for external links.", 5000);
+
+      const scans = await this.scanVaultForLinks();
+      const urls = Array.from(new Set(scans.reduce<string[]>((all, scan) => all.concat(scan.urls), [])));
+      const linkCount = scans.reduce((total, scan) => total + scan.linkCount, 0);
+
+      if (urls.length === 0) {
+        new Notice("No external HTTP links found in the vault.");
+        return;
+      }
+
+      const confirmed = window.confirm(
+        `Wayback Linker found ${linkCount} link${linkCount === 1 ? "" : "s"} across ` +
+          `${scans.length} note${scans.length === 1 ? "" : "s"}.\n\n` +
+          `It will archive ${urls.length} unique URL${urls.length === 1 ? "" : "s"} and replace successful links across the vault. Continue?`
+      );
+
+      if (!confirmed) {
+        new Notice("Wayback Linker vault scan canceled.");
+        return;
+      }
+
+      const { archivedByUrl, progress } = await this.archiveUrlsWithProgress(
+        urls,
+        "Wayback vault",
+        "Wayback vault scan"
+      );
+
+      let replacedCount = 0;
+      let changedFileCount = 0;
+
+      for (const scan of scans) {
+        const editor = this.getActiveEditorForFile(scan.file);
+        const latestContent = editor?.getValue() ?? await this.app.vault.read(scan.file);
+        const replacements = replacementsFromArchivedUrls(
+          latestContent,
+          archivedByUrl,
+          this.settings.archiveBareUrls
+        );
+
+        if (replacements.length === 0) {
+          continue;
+        }
+
+        const updatedContent = applyReplacements(latestContent, replacements);
+
+        if (editor) {
+          editor.setValue(updatedContent);
+        } else {
+          await this.app.vault.modify(scan.file, updatedContent);
+        }
+
+        replacedCount += replacements.length;
+        changedFileCount++;
+      }
+
+      const failedCount = Array.from(archivedByUrl.values()).filter((result) => result.error).length;
+
+      new Notice(
+        replacedCount
+          ? `Replaced ${replacedCount} link${replacedCount === 1 ? "" : "s"} across ${changedFileCount} note${changedFileCount === 1 ? "" : "s"}.` +
+              (failedCount ? ` ${failedCount} URL${failedCount === 1 ? "" : "s"} failed.` : "")
+          : "No links were replaced after the vault scan.",
+        15000
+      );
+      progress.finish();
+    } catch (error) {
+      logError(this.settings, "Wayback Linker vault scan failed", error);
+      new Notice(`Wayback Linker vault scan failed: ${getErrorMessage(error)}`, 10000);
+    }
+  }
+
+  private async scanVaultForLinks() {
+    const scans: Array<{ file: TFile; linkCount: number; urls: string[] }> = [];
+
+    for (const file of this.app.vault.getMarkdownFiles()) {
+      const content = await this.app.vault.read(file);
+      const matches = findExternalLinks(content, this.settings.archiveBareUrls);
+
+      if (matches.length === 0) {
+        continue;
+      }
+
+      scans.push({
+        file,
+        linkCount: matches.length,
+        urls: uniqueNormalizedUrls(matches)
+      });
+    }
+
+    return scans;
+  }
+
   private async archiveFileLinks(file: TFile, editor?: Editor) {
     const content = editor?.getValue() ?? await this.app.vault.read(file);
     const matches = findExternalLinks(content, this.settings.archiveBareUrls);
@@ -157,38 +258,12 @@ export default class WaybackLinkerPlugin extends Plugin {
       return;
     }
 
-    const urls = Array.from(new Set(matches.map((match) => normalizeUrl(match.url))));
-    const archivedByUrl = new Map<string, ArchiveResult>();
-    const status = this.addStatusBarItem();
-    const progress = new WaybackProgressModal(this.app, urls);
-
-    status.addClass("wayback-status-item");
-    status.setAttr("aria-label", "Open Wayback Linker progress");
-    status.setAttr("title", "Open Wayback Linker progress");
-    status.onClickEvent(() => progress.open());
-    progress.open();
-
-    try {
-      for (let index = 0; index < urls.length; index++) {
-        const url = urls[index];
-        status.setText(`Wayback ${index + 1}/${urls.length}`);
-        progress.markWorking(index);
-        new Notice(`Archiving ${index + 1}/${urls.length}: ${url}`, 3500);
-
-        const result = await archiveUrl(url, this.settings, this.app.secretStorage, (message) => {
-          progress.updateMessage(index, message);
-          status.setText(`Wayback ${index + 1}/${urls.length}: waiting`);
-        });
-        archivedByUrl.set(url, result);
-        progress.markComplete(index, result);
-
-        if (index < urls.length - 1 && this.settings.requestDelayMs > 0) {
-          await sleep(this.settings.requestDelayMs);
-        }
-      }
-    } finally {
-      status.remove();
-    }
+    const urls = uniqueNormalizedUrls(matches);
+    const { archivedByUrl, progress } = await this.archiveUrlsWithProgress(
+      urls,
+      "Wayback",
+      "Wayback Linker"
+    );
 
     const latestContent = editor?.getValue() ?? await this.app.vault.read(file);
     const replacements = replacementsFromArchivedUrls(
@@ -225,6 +300,46 @@ export default class WaybackLinkerPlugin extends Plugin {
       10000
     );
     progress.finish();
+  }
+
+  private async archiveUrlsWithProgress(
+    urls: string[],
+    statusPrefix: string,
+    progressTitle: string
+  ) {
+    const archivedByUrl = new Map<string, ArchiveResult>();
+    const status = this.addStatusBarItem();
+    const progress = new WaybackProgressModal(this.app, urls, progressTitle);
+
+    status.addClass("wayback-status-item");
+    status.setAttr("aria-label", "Open Wayback Linker progress");
+    status.setAttr("title", "Open Wayback Linker progress");
+    status.onClickEvent(() => progress.open());
+    progress.open();
+
+    try {
+      for (let index = 0; index < urls.length; index++) {
+        const url = urls[index];
+        status.setText(`${statusPrefix} ${index + 1}/${urls.length}`);
+        progress.markWorking(index);
+        new Notice(`Archiving ${index + 1}/${urls.length}: ${url}`, 3500);
+
+        const result = await archiveUrl(url, this.settings, this.app.secretStorage, (message) => {
+          progress.updateMessage(index, message);
+          status.setText(`${statusPrefix} ${index + 1}/${urls.length}: waiting`);
+        });
+        archivedByUrl.set(url, result);
+        progress.markComplete(index, result);
+
+        if (index < urls.length - 1 && this.settings.requestDelayMs > 0) {
+          await sleep(this.settings.requestDelayMs);
+        }
+      }
+    } finally {
+      status.remove();
+    }
+
+    return { archivedByUrl, progress };
   }
 
   private async archiveEditorLink(editor: Editor, link: LinkMatch) {
@@ -407,6 +522,14 @@ function normalizeArchiveHost(hostname: string) {
 
 function normalizeUrl(url: string) {
   return url.trim();
+}
+
+function uniqueNormalizedUrls(matches: LinkMatch[]) {
+  return Array.from(new Set(matches.map((match) => normalizeUrl(match.url))));
+}
+
+export function uniqueArchiveUrlsFromContent(content: string, includeBareUrls: boolean) {
+  return uniqueNormalizedUrls(findExternalLinks(content, includeBareUrls));
 }
 
 function unwrapAngleBrackets(url: string) {
@@ -989,14 +1112,16 @@ class WaybackLinkerSettingTab extends PluginSettingTab {
 
 class WaybackProgressModal extends Modal {
   private items: ArchiveProgressItem[];
+  private title: string;
   private headingEl: HTMLElement;
   private summaryEl: HTMLElement;
   private currentEl: HTMLElement;
   private listEl: HTMLElement;
   private finished = false;
 
-  constructor(app: App, urls: string[]) {
+  constructor(app: App, urls: string[], title = "Wayback Linker") {
     super(app);
+    this.title = title;
     this.items = urls.map((url) => ({
       url,
       state: "pending",
@@ -1064,7 +1189,7 @@ class WaybackProgressModal extends Modal {
     const failures = this.items.filter((item) => item.state === "failed").length;
     const current = this.items.find((item) => item.state === "working");
 
-    this.headingEl.setText(this.finished ? "Wayback Linker complete" : "Wayback Linker running");
+    this.headingEl.setText(`${this.title} ${this.finished ? "complete" : "running"}`);
     this.summaryEl.setText(
       `${completed}/${this.items.length} done | ${successes} fresh | ${fallbacks} fallback | ${failures} failed`
     );

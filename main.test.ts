@@ -9,7 +9,8 @@ import {
   isFreshTimestamp,
   latestAvailableSnapshotFromCdxApi,
   replacementsFromArchivedUrls,
-  shouldArchiveUrl
+  shouldArchiveUrl,
+  uniqueArchiveUrlsFromContent
 } from "./main.ts";
 
 describe("link discovery", () => {
@@ -47,6 +48,20 @@ describe("link discovery", () => {
     ].join("\n");
 
     expect(findExternalLinks(content, true)).toEqual([]);
+  });
+
+  it("deduplicates archivable URLs for batch runs while skipping Wayback links", () => {
+    const content = [
+      "First https://example.com/page",
+      "Again [Example](https://example.com/page)",
+      "Archived https://web.archive.org/web/20260101000000/https://example.com/page",
+      "<https://docs.example.com/guide>"
+    ].join("\n");
+
+    expect(uniqueArchiveUrlsFromContent(content, true)).toEqual([
+      "https://example.com/page",
+      "https://docs.example.com/guide"
+    ]);
   });
 
   it("preserves angle brackets when replacing markdown link targets", () => {

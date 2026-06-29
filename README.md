@@ -2,7 +2,7 @@
 
   # Wayback Linker
 
-  **Archive external links in your active note with the Wayback Machine.**
+  **Archive external links in your active note or whole vault with the Wayback Machine.**
 
   [![License: MIT](https://img.shields.io/badge/License-MIT-cba6f7.svg)](https://opensource.org/licenses/MIT)
   [![Version](https://img.shields.io/badge/version-0.2.3-89b4fa)](https://github.com/Real-Fruit-Snacks/wayback-linker/releases)
@@ -15,11 +15,12 @@
 
 ## Overview
 
-Wayback Linker is an Obsidian plugin that automatically archives external links in your active note using the Internet Archive's Wayback Machine. It seamlessly replaces each original link with the newly archived snapshot URL, ensuring your links never suffer from link rot.
+Wayback Linker is an Obsidian plugin that automatically archives external links in your active note or across your vault using the Internet Archive's Wayback Machine. It seamlessly replaces each original link with the newly archived snapshot URL, ensuring your links never suffer from link rot.
 
 ### Key Features
 
 - **Automated Archiving:** Processes every external `http://` and `https://` link in the active Markdown note.
+- **Vault-Wide Scan:** Scans every Markdown note, confirms the scope, archives each unique URL once, and replaces successful links across the vault.
 - **Save Page Now Integration:** Sends URLs directly to the Wayback Machine's capture endpoint.
 - **Smart Replacement:** Replaces links only when a fresh snapshot URL is successfully generated.
 - **Fallback Support:** Optionally falls back to the most recent existing snapshot if a fresh capture fails or times out.
@@ -42,9 +43,10 @@ Wayback Linker is an Obsidian plugin that automatically archives external links 
 
 ## Usage
 
-You can trigger the archiving process in two ways:
+You can trigger the archiving process in three ways:
 1. Click the ribbon button or run **Archive active note links with Wayback Machine** from the command palette to process the entire note.
-2. Right-click an external URL in the editor and choose **Archive link with Wayback Machine** to process just that link.
+2. Run **Archive all vault links with Wayback Machine** from the command palette to scan every Markdown note, confirm the count, archive each unique URL once, and replace successful links across the vault.
+3. Right-click an external URL in the editor and choose **Archive link with Wayback Machine** to process just that link.
 
 ### Internet Archive Login
 

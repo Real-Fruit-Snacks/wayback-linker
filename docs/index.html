@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Wayback Linker -- Wayback Linker automatically archives all outgoing links from a webpage to the Internet Archive as you browse.">
-    <meta name="keywords" content="Wayback Linker, plugin, Wayback Linker, sub vault, productivity, knowledge management, note taking">
+    <meta name="description" content="Wayback Linker archives external links in Obsidian notes or across an entire vault and replaces them with durable Wayback Machine snapshots.">
+    <meta name="keywords" content="Wayback Linker, Obsidian plugin, Wayback Machine, Internet Archive, vault archival, productivity, knowledge management, note taking">
     <title>Wayback Linker -- Wayback Linker Plugin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -43,7 +43,7 @@
                 Obsidian plugin for automated Wayback Machine archival.
             </h1>
             <p class="hero-subtitle">
-                Wayback Linker automatically archives all outgoing links from your active note to the Internet Archive, protecting you from link rot.
+                Wayback Linker automatically archives outgoing links from your active note or entire vault to the Internet Archive, protecting you from link rot.
             </p>
             <div class="hero-actions">
                 <a href="https://github.com/Real-Fruit-Snacks/wayback-linker/releases/latest" class="btn btn--primary">
@@ -92,7 +92,7 @@
                     </div>
                 </div>
                 <div class="mock-statusbar">
-                    <span class="mock-statusbar-vault">Archive active note links with Wayback Machine</span>
+                    <span class="mock-statusbar-vault">Archive all vault links with Wayback Machine</span>
                 </div>
             </div>
         </div>
@@ -114,6 +114,14 @@
                     </div>
                     <h3>Automated Archiving</h3>
                     <p>Processes every external <code>http://</code> and <code>https://</code> link in the active Markdown note with a single command.</p>
+                </div>
+
+                <div class="feature-card" data-reveal>
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3z"/><path d="M14 3h7v7h-7z"/><path d="M14 14h7v7h-7z"/><path d="M3 14h7v7H3z"/></svg>
+                    </div>
+                    <h3>Vault-Wide Scan</h3>
+                    <p>Scans every Markdown note, confirms the scope, archives each unique URL once, and applies successful replacements across the vault.</p>
                 </div>
 
                 <div class="feature-card" data-reveal>
@@ -167,7 +175,7 @@
                     </div>
                     <div class="step-content">
                         <h3>Trigger the command</h3>
-                        <p>Click the ribbon button or run <strong>Archive active note links with Wayback Machine</strong> from the command palette.</p>
+                        <p>Click the ribbon button, run <strong>Archive active note links with Wayback Machine</strong>, or choose <strong>Archive all vault links with Wayback Machine</strong> for a confirmed vault-wide pass.</p>
                     </div>
                 </div>
 
@@ -178,7 +186,7 @@
                     </div>
                     <div class="step-content">
                         <h3>Background Capture</h3>
-                        <p>The plugin securely authenticates with the Internet Archive and fires off a Save Page Now request for every external link found in the note.</p>
+                        <p>The plugin securely authenticates with the Internet Archive and fires off a Save Page Now request for every unique external URL found in the selected note or vault scan.</p>
                     </div>
                 </div>
 
