@@ -15,6 +15,7 @@ import {
 interface WaybackLinkerSettings {
   requestDelayMs: number;
   archiveBareUrls: boolean;
+  ignoredDomains: string[];
   maxCaptureWaitSeconds: number;
   accessKeySecretId: string;
   secretKeySecretId: string;
@@ -27,6 +28,7 @@ interface WaybackLinkerSettings {
 const DEFAULT_SETTINGS: WaybackLinkerSettings = {
   requestDelayMs: 1500,
   archiveBareUrls: true,
+  ignoredDomains: [],
   maxCaptureWaitSeconds: 90,
   accessKeySecretId: "",
   secretKeySecretId: "",
@@ -48,6 +50,7 @@ interface ArchiveResult {
   archivedUrl?: string;
   error?: string;
   usedFallback?: boolean;
+  canceled?: boolean;
 }
 
 interface CaptureResult {
@@ -56,7 +59,7 @@ interface CaptureResult {
   retryableThrottle?: boolean;
 }
 
-type ArchiveState = "pending" | "working" | "success" | "fallback" | "failed";
+type ArchiveState = "pending" | "working" | "success" | "fallback" | "failed" | "canceled";
 
 interface ArchiveProgressItem {
   url: string;
@@ -67,6 +70,10 @@ interface ArchiveProgressItem {
 interface SecretStorageLike {
   getSecret(id: string): string | null;
   setSecret(id: string, secret: string): void;
+}
+
+interface CancellationToken {
+  cancelled: boolean;
 }
 
 const HTTP_URL_PATTERN = /^https?:\/\//i;
@@ -98,7 +105,11 @@ export default class WaybackLinkerPlugin extends Plugin {
 
     this.registerEvent(
       this.app.workspace.on("editor-menu", (menu, editor) => {
-        const link = findLinkUnderEditorCursor(editor, this.settings.archiveBareUrls);
+        const link = findLinkUnderEditorCursor(
+          editor,
+          this.settings.archiveBareUrls,
+          this.settings.ignoredDomains
+        );
 
         if (!link) {
           return;
@@ -117,8 +128,17 @@ export default class WaybackLinkerPlugin extends Plugin {
   }
 
   async loadSettings() {
-    const saved = await this.loadData() as Partial<WaybackLinkerSettings> | null;
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, saved ?? {});
+    const saved = await this.loadData() as (Partial<WaybackLinkerSettings> & {
+      ignoredDomains?: string[] | string;
+    }) | null;
+    const { ignoredDomains, ...savedSettings } = saved ?? {};
+
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, savedSettings);
+    this.settings.ignoredDomains = Array.isArray(ignoredDomains)
+      ? normalizedIgnoredDomains(ignoredDomains)
+      : typeof ignoredDomains === "string"
+      ? parseIgnoredDomainsSetting(ignoredDomains)
+      : DEFAULT_SETTINGS.ignoredDomains;
   }
 
   async saveSettings() {
@@ -162,22 +182,22 @@ export default class WaybackLinkerPlugin extends Plugin {
       const linkCount = scans.reduce((total, scan) => total + scan.linkCount, 0);
 
       if (urls.length === 0) {
-        new Notice("No external HTTP links found in the vault.");
+        new Notice("No archivable external HTTP links found in the vault.");
         return;
       }
 
-      const confirmed = window.confirm(
-        `Wayback Linker found ${linkCount} link${linkCount === 1 ? "" : "s"} across ` +
-          `${scans.length} note${scans.length === 1 ? "" : "s"}.\n\n` +
-          `It will archive ${urls.length} unique URL${urls.length === 1 ? "" : "s"} and replace successful links across the vault. Continue?`
-      );
+      const confirmed = await confirmVaultArchive(this.app, {
+        linkCount,
+        noteCount: scans.length,
+        uniqueUrlCount: urls.length
+      });
 
       if (!confirmed) {
         new Notice("Wayback Linker vault scan canceled.");
         return;
       }
 
-      const { archivedByUrl, progress } = await this.archiveUrlsWithProgress(
+      const { archivedByUrl, progress, canceled } = await this.archiveUrlsWithProgress(
         urls,
         "Wayback vault",
         "Wayback vault scan"
@@ -192,7 +212,8 @@ export default class WaybackLinkerPlugin extends Plugin {
         const replacements = replacementsFromArchivedUrls(
           latestContent,
           archivedByUrl,
-          this.settings.archiveBareUrls
+          this.settings.archiveBareUrls,
+          this.settings.ignoredDomains
         );
 
         if (replacements.length === 0) {
@@ -211,16 +232,20 @@ export default class WaybackLinkerPlugin extends Plugin {
         changedFileCount++;
       }
 
-      const failedCount = Array.from(archivedByUrl.values()).filter((result) => result.error).length;
+      const failedCount = countFailedResults(archivedByUrl);
 
       new Notice(
-        replacedCount
+        canceled
+          ? replacedCount
+            ? `Wayback Linker canceled. Replaced ${replacedCount} completed link${replacedCount === 1 ? "" : "s"} across ${changedFileCount} note${changedFileCount === 1 ? "" : "s"}.`
+            : "Wayback Linker canceled. No links were replaced."
+          : replacedCount
           ? `Replaced ${replacedCount} link${replacedCount === 1 ? "" : "s"} across ${changedFileCount} note${changedFileCount === 1 ? "" : "s"}.` +
               (failedCount ? ` ${failedCount} URL${failedCount === 1 ? "" : "s"} failed.` : "")
           : "No links were replaced after the vault scan.",
         15000
       );
-      progress.finish();
+      progress.finish(canceled);
     } catch (error) {
       logError(this.settings, "Wayback Linker vault scan failed", error);
       new Notice(`Wayback Linker vault scan failed: ${getErrorMessage(error)}`, 10000);
@@ -232,7 +257,11 @@ export default class WaybackLinkerPlugin extends Plugin {
 
     for (const file of this.app.vault.getMarkdownFiles()) {
       const content = await this.app.vault.read(file);
-      const matches = findExternalLinks(content, this.settings.archiveBareUrls);
+      const matches = findExternalLinks(
+        content,
+        this.settings.archiveBareUrls,
+        this.settings.ignoredDomains
+      );
 
       if (matches.length === 0) {
         continue;
@@ -250,16 +279,20 @@ export default class WaybackLinkerPlugin extends Plugin {
 
   private async archiveFileLinks(file: TFile, editor?: Editor) {
     const content = editor?.getValue() ?? await this.app.vault.read(file);
-    const matches = findExternalLinks(content, this.settings.archiveBareUrls);
+    const matches = findExternalLinks(
+      content,
+      this.settings.archiveBareUrls,
+      this.settings.ignoredDomains
+    );
 
     if (matches.length === 0) {
-      logDebug(this.settings, "No external HTTP links found in this note.");
-      new Notice("No external HTTP links found in this note.");
+      logDebug(this.settings, "No archivable external HTTP links found in this note.");
+      new Notice("No archivable external HTTP links found in this note.");
       return;
     }
 
     const urls = uniqueNormalizedUrls(matches);
-    const { archivedByUrl, progress } = await this.archiveUrlsWithProgress(
+    const { archivedByUrl, progress, canceled } = await this.archiveUrlsWithProgress(
       urls,
       "Wayback",
       "Wayback Linker"
@@ -269,19 +302,24 @@ export default class WaybackLinkerPlugin extends Plugin {
     const replacements = replacementsFromArchivedUrls(
       latestContent,
       archivedByUrl,
-      this.settings.archiveBareUrls
+      this.settings.archiveBareUrls,
+      this.settings.ignoredDomains
     );
 
     if (replacements.length === 0) {
       const failures = Array.from(archivedByUrl.values())
-        .filter((result) => result.error)
+        .filter((result) => result.error && !result.canceled)
         .map((result) => `${result.originalUrl}: ${result.error}`)
         .join("\n");
 
-      const msg = failures ? `No links replaced. Failures:\n${failures}` : "No links were archived.";
+      const msg = canceled
+        ? "Wayback Linker canceled. No links were replaced."
+        : failures
+        ? `No links replaced. Failures:\n${failures}`
+        : "No links were archived.";
       logDebug(this.settings, msg);
       new Notice(msg, 15000);
-      progress.finish();
+      progress.finish(canceled);
       return;
     }
 
@@ -293,13 +331,15 @@ export default class WaybackLinkerPlugin extends Plugin {
       await this.app.vault.modify(file, updatedContent);
     }
 
-    const failedCount = Array.from(archivedByUrl.values()).filter((result) => result.error).length;
+    const failedCount = countFailedResults(archivedByUrl);
     new Notice(
-      `Replaced ${replacements.length} link${replacements.length === 1 ? "" : "s"} with Wayback URL${replacements.length === 1 ? "" : "s"}.` +
-        (failedCount ? ` ${failedCount} URL${failedCount === 1 ? "" : "s"} failed.` : ""),
+      canceled
+        ? `Wayback Linker canceled. Replaced ${replacements.length} completed link${replacements.length === 1 ? "" : "s"} with Wayback URL${replacements.length === 1 ? "" : "s"}.`
+        : `Replaced ${replacements.length} link${replacements.length === 1 ? "" : "s"} with Wayback URL${replacements.length === 1 ? "" : "s"}.` +
+          (failedCount ? ` ${failedCount} URL${failedCount === 1 ? "" : "s"} failed.` : ""),
       10000
     );
-    progress.finish();
+    progress.finish(canceled);
   }
 
   private async archiveUrlsWithProgress(
@@ -308,8 +348,12 @@ export default class WaybackLinkerPlugin extends Plugin {
     progressTitle: string
   ) {
     const archivedByUrl = new Map<string, ArchiveResult>();
+    const cancellation: CancellationToken = { cancelled: false };
     const status = this.addStatusBarItem();
-    const progress = new WaybackProgressModal(this.app, urls, progressTitle);
+    const progress = new WaybackProgressModal(this.app, urls, progressTitle, () => {
+      cancellation.cancelled = true;
+      status.setText(`${statusPrefix}: canceling`);
+    });
 
     status.addClass("wayback-status-item");
     status.setAttr("aria-label", "Open Wayback Linker progress");
@@ -319,27 +363,37 @@ export default class WaybackLinkerPlugin extends Plugin {
 
     try {
       for (let index = 0; index < urls.length; index++) {
+        if (cancellation.cancelled) {
+          break;
+        }
+
         const url = urls[index];
         status.setText(`${statusPrefix} ${index + 1}/${urls.length}`);
         progress.markWorking(index);
         new Notice(`Archiving ${index + 1}/${urls.length}: ${url}`, 3500);
 
-        const result = await archiveUrl(url, this.settings, this.app.secretStorage, (message) => {
-          progress.updateMessage(index, message);
-          status.setText(`${statusPrefix} ${index + 1}/${urls.length}: waiting`);
-        });
+        const result = await archiveUrl(
+          url,
+          this.settings,
+          this.app.secretStorage,
+          (message) => {
+            progress.updateMessage(index, message);
+            status.setText(`${statusPrefix} ${index + 1}/${urls.length}: waiting`);
+          },
+          cancellation
+        );
         archivedByUrl.set(url, result);
         progress.markComplete(index, result);
 
         if (index < urls.length - 1 && this.settings.requestDelayMs > 0) {
-          await sleep(this.settings.requestDelayMs);
+          await cancellableSleep(this.settings.requestDelayMs, cancellation);
         }
       }
     } finally {
       status.remove();
     }
 
-    return { archivedByUrl, progress };
+    return { archivedByUrl, progress, canceled: cancellation.cancelled };
   }
 
   private async archiveEditorLink(editor: Editor, link: LinkMatch) {
@@ -378,26 +432,34 @@ export default class WaybackLinkerPlugin extends Plugin {
   }
 }
 
-export function findExternalLinks(content: string, includeBareUrls: boolean): LinkMatch[] {
+export function findExternalLinks(
+  content: string,
+  includeBareUrls: boolean,
+  ignoredDomains: string[] = []
+): LinkMatch[] {
   const occupiedRanges: Array<[number, number]> = [];
   const matches: LinkMatch[] = [];
 
-  addMarkdownLinks(content, matches, occupiedRanges);
-  addAutolinks(content, matches, occupiedRanges);
+  addMarkdownLinks(content, matches, occupiedRanges, ignoredDomains);
+  addAutolinks(content, matches, occupiedRanges, ignoredDomains);
 
   if (includeBareUrls) {
-    addBareUrls(content, matches, occupiedRanges);
+    addBareUrls(content, matches, occupiedRanges, ignoredDomains);
   }
 
   return matches.sort((a, b) => a.start - b.start);
 }
 
-function findLinkUnderEditorCursor(editor: Editor, includeBareUrls: boolean) {
+function findLinkUnderEditorCursor(
+  editor: Editor,
+  includeBareUrls: boolean,
+  ignoredDomains: string[] = []
+) {
   const content = editor.getValue();
   const cursorOffset = editor.posToOffset(editor.getCursor());
   const selectionStart = editor.posToOffset(editor.getCursor("from"));
   const selectionEnd = editor.posToOffset(editor.getCursor("to"));
-  const matches = findExternalLinks(content, includeBareUrls);
+  const matches = findExternalLinks(content, includeBareUrls, ignoredDomains);
 
   return matches.find((match) => {
     if (selectionStart !== selectionEnd) {
@@ -411,7 +473,8 @@ function findLinkUnderEditorCursor(editor: Editor, includeBareUrls: boolean) {
 function addMarkdownLinks(
   content: string,
   matches: LinkMatch[],
-  occupiedRanges: Array<[number, number]>
+  occupiedRanges: Array<[number, number]>,
+  ignoredDomains: string[]
 ) {
   const markdownLinkPattern = /(!?)\[([^\]\n]+)\]\((<[^>\n]+>|[^)\s\n]+)(?:\s+["'][^"'\n]*["'])?\)/g;
   let match: RegExpExecArray | null;
@@ -427,7 +490,7 @@ function addMarkdownLinks(
     const rawTarget = match[3];
     const unwrappedUrl = unwrapAngleBrackets(rawTarget);
 
-    if (!shouldArchiveUrl(unwrappedUrl)) {
+    if (!shouldArchiveUrl(unwrappedUrl, ignoredDomains)) {
       continue;
     }
 
@@ -447,7 +510,8 @@ function addMarkdownLinks(
 function addAutolinks(
   content: string,
   matches: LinkMatch[],
-  occupiedRanges: Array<[number, number]>
+  occupiedRanges: Array<[number, number]>,
+  ignoredDomains: string[]
 ) {
   const autolinkPattern = /<https?:\/\/[^>\s]+>/gi;
   let match: RegExpExecArray | null;
@@ -458,7 +522,7 @@ function addAutolinks(
     }
 
     const rawUrl = match[0].slice(1, -1);
-    if (!shouldArchiveUrl(rawUrl)) {
+    if (!shouldArchiveUrl(rawUrl, ignoredDomains)) {
       continue;
     }
 
@@ -475,7 +539,8 @@ function addAutolinks(
 function addBareUrls(
   content: string,
   matches: LinkMatch[],
-  occupiedRanges: Array<[number, number]>
+  occupiedRanges: Array<[number, number]>,
+  ignoredDomains: string[]
 ) {
   const bareUrlPattern = /https?:\/\/[^\s<>"')\]]+/gi;
   let match: RegExpExecArray | null;
@@ -486,7 +551,7 @@ function addBareUrls(
     }
 
     const trimmed = trimTrailingPunctuation(match[0]);
-    if (!shouldArchiveUrl(trimmed.url)) {
+    if (!shouldArchiveUrl(trimmed.url, ignoredDomains)) {
       continue;
     }
 
@@ -504,13 +569,14 @@ function isInOccupiedRange(index: number, occupiedRanges: Array<[number, number]
   return occupiedRanges.some(([start, end]) => index >= start && index < end);
 }
 
-export function shouldArchiveUrl(url: string) {
+export function shouldArchiveUrl(url: string, ignoredDomains: string[] = []) {
   if (!HTTP_URL_PATTERN.test(url)) {
     return false;
   }
 
   try {
-    return normalizeArchiveHost(new URL(url).hostname) !== "web.archive.org";
+    const hostname = normalizeArchiveHost(new URL(url).hostname);
+    return hostname !== "web.archive.org" && !isIgnoredHostname(hostname, ignoredDomains);
   } catch {
     return false;
   }
@@ -518,6 +584,36 @@ export function shouldArchiveUrl(url: string) {
 
 function normalizeArchiveHost(hostname: string) {
   return hostname.toLowerCase().replace(/^www\./, "");
+}
+
+function isIgnoredHostname(hostname: string, ignoredDomains: string[]) {
+  return normalizedIgnoredDomains(ignoredDomains).some((ignoredDomain) =>
+    hostname === ignoredDomain || hostname.endsWith(`.${ignoredDomain}`)
+  );
+}
+
+export function parseIgnoredDomainsSetting(value: string) {
+  return normalizedIgnoredDomains(value.split(/[\n,]/));
+}
+
+function normalizedIgnoredDomains(domains: string[]) {
+  return Array.from(new Set(domains.map(normalizeIgnoredDomain).filter(Boolean)));
+}
+
+function normalizeIgnoredDomain(domain: string) {
+  const trimmed = domain.trim().toLowerCase();
+
+  if (!trimmed) {
+    return "";
+  }
+
+  const withoutWildcard = trimmed.replace(/^\*\./, "").replace(/^\./, "");
+
+  try {
+    return normalizeArchiveHost(new URL(withoutWildcard).hostname);
+  } catch {
+    return normalizeArchiveHost(withoutWildcard.split("/")[0] ?? "");
+  }
 }
 
 function normalizeUrl(url: string) {
@@ -528,8 +624,12 @@ function uniqueNormalizedUrls(matches: LinkMatch[]) {
   return Array.from(new Set(matches.map((match) => normalizeUrl(match.url))));
 }
 
-export function uniqueArchiveUrlsFromContent(content: string, includeBareUrls: boolean) {
-  return uniqueNormalizedUrls(findExternalLinks(content, includeBareUrls));
+export function uniqueArchiveUrlsFromContent(
+  content: string,
+  includeBareUrls: boolean,
+  ignoredDomains: string[] = []
+) {
+  return uniqueNormalizedUrls(findExternalLinks(content, includeBareUrls, ignoredDomains));
 }
 
 function unwrapAngleBrackets(url: string) {
@@ -550,7 +650,8 @@ async function archiveUrl(
   url: string,
   settings: WaybackLinkerSettings,
   secretStorage: SecretStorageLike,
-  onProgress?: (message: string) => void
+  onProgress?: (message: string) => void,
+  cancellation?: CancellationToken
 ): Promise<ArchiveResult> {
   const headers = waybackHeaders(settings, secretStorage);
 
@@ -558,6 +659,10 @@ async function archiveUrl(
     let capture: CaptureResult = {};
 
     for (let attempt = 0; attempt <= settings.maxThrottleRetries; attempt++) {
+      if (cancellation?.cancelled) {
+        return { originalUrl: url, error: "Canceled", canceled: true };
+      }
+
       const requestedAt = new Date();
 
       if (attempt > 0) {
@@ -581,7 +686,8 @@ async function archiveUrl(
         url,
         requestedAt,
         settings.maxCaptureWaitSeconds,
-        headers
+        headers,
+        cancellation
       );
 
       if (capture.archivedUrl || !capture.retryableThrottle || attempt >= settings.maxThrottleRetries) {
@@ -591,7 +697,11 @@ async function archiveUrl(
       onProgress?.(
         `Throttled by active Save Page Now sessions. Waiting ${settings.throttleRetryDelaySeconds}s before retry ${attempt + 1}/${settings.maxThrottleRetries}.`
       );
-      await sleep(settings.throttleRetryDelaySeconds * 1000);
+      await cancellableSleep(settings.throttleRetryDelaySeconds * 1000, cancellation);
+    }
+
+    if (cancellation?.cancelled) {
+      return { originalUrl: url, error: "Canceled", canceled: true };
     }
 
     if (!capture.archivedUrl && settings.fallbackToLatestSnapshot) {
@@ -624,12 +734,13 @@ async function captureFromSaveResponse(
   originalUrl: string,
   requestedAt: Date,
   maxWaitSeconds: number,
-  headers: Record<string, string>
+  headers: Record<string, string>,
+  cancellation?: CancellationToken
 ): Promise<CaptureResult> {
   const data = parseCaptureResponse(response.json);
 
   if (data.job_id) {
-    return pollCaptureStatus(data.job_id, originalUrl, requestedAt, maxWaitSeconds, headers);
+    return pollCaptureStatus(data.job_id, originalUrl, requestedAt, maxWaitSeconds, headers, cancellation);
   }
 
   const timestamp = data.timestamp ?? timestampFromWaybackUrl(data.url);
@@ -655,13 +766,22 @@ async function pollCaptureStatus(
   originalUrl: string,
   requestedAt: Date,
   maxWaitSeconds: number,
-  headers: Record<string, string>
+  headers: Record<string, string>,
+  cancellation?: CancellationToken
 ): Promise<CaptureResult> {
   const deadline = Date.now() + maxWaitSeconds * 1000;
   let lastMessage = "";
 
   while (Date.now() < deadline) {
-    await sleep(3000);
+    if (cancellation?.cancelled) {
+      return { error: "Canceled" };
+    }
+
+    await cancellableSleep(3000, cancellation);
+
+    if (cancellation?.cancelled) {
+      return { error: "Canceled" };
+    }
 
     const response = await requestUrl({
       url: `https://web.archive.org/save/status/${encodeURIComponent(jobId)}?_t=${Date.now()}`,
@@ -926,9 +1046,10 @@ function getString(record: Record<string, unknown>, key: string) {
 export function replacementsFromArchivedUrls(
   content: string,
   archivedByUrl: Map<string, ArchiveResult>,
-  includeBareUrls: boolean
+  includeBareUrls: boolean,
+  ignoredDomains: string[] = []
 ) {
-  return findExternalLinks(content, includeBareUrls)
+  return findExternalLinks(content, includeBareUrls, ignoredDomains)
     .map((match) => {
       const result = archivedByUrl.get(normalizeUrl(match.url));
       return result?.archivedUrl
@@ -958,8 +1079,20 @@ function currentContentFromLink(link: LinkMatch) {
   return link.replacement(link.url);
 }
 
+function countFailedResults(archivedByUrl: Map<string, ArchiveResult>) {
+  return Array.from(archivedByUrl.values()).filter((result) => result.error && !result.canceled).length;
+}
+
 function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function cancellableSleep(ms: number, cancellation?: CancellationToken) {
+  const deadline = Date.now() + ms;
+
+  while (!cancellation?.cancelled && Date.now() < deadline) {
+    await sleep(Math.min(250, deadline - Date.now()));
+  }
 }
 
 function getErrorMessage(error: unknown) {
@@ -1002,6 +1135,19 @@ class WaybackLinkerSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.archiveBareUrls)
           .onChange(async (value) => {
             this.plugin.settings.archiveBareUrls = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Ignored domains")
+      .setDesc("Domains to skip during note, vault, and right-click archiving. Use one per line or comma-separated values, for example amazon.com.")
+      .addTextArea((text) =>
+        text
+          .setPlaceholder("amazon.com\nexample.org")
+          .setValue(this.plugin.settings.ignoredDomains.join("\n"))
+          .onChange(async (value) => {
+            this.plugin.settings.ignoredDomains = parseIgnoredDomainsSetting(value);
             await this.plugin.saveSettings();
           })
       );
@@ -1113,15 +1259,20 @@ class WaybackLinkerSettingTab extends PluginSettingTab {
 class WaybackProgressModal extends Modal {
   private items: ArchiveProgressItem[];
   private title: string;
+  private onCancel?: () => void;
   private headingEl: HTMLElement;
+  private cancelButtonEl: HTMLButtonElement;
   private summaryEl: HTMLElement;
   private currentEl: HTMLElement;
   private listEl: HTMLElement;
   private finished = false;
+  private canceled = false;
+  private cancelRequested = false;
 
-  constructor(app: App, urls: string[], title = "Wayback Linker") {
+  constructor(app: App, urls: string[], title = "Wayback Linker", onCancel?: () => void) {
     super(app);
     this.title = title;
+    this.onCancel = onCancel;
     this.items = urls.map((url) => ({
       url,
       state: "pending",
@@ -1135,7 +1286,16 @@ class WaybackProgressModal extends Modal {
     this.modalEl.addClass("wayback-progress-shell");
     contentEl.addClass("wayback-progress-modal");
 
-    this.headingEl = contentEl.createEl("h2", { text: "Wayback Linker" });
+    const headerEl = contentEl.createDiv("wayback-progress-header");
+    this.headingEl = headerEl.createEl("h2", { text: "Wayback Linker" });
+    this.cancelButtonEl = headerEl.createEl("button", {
+      cls: "wayback-progress-cancel",
+      text: "Cancel"
+    });
+    this.cancelButtonEl.addEventListener("click", () => {
+      this.onCancel?.();
+      this.requestCancel();
+    });
     this.summaryEl = contentEl.createDiv("wayback-progress-summary");
     this.currentEl = contentEl.createDiv("wayback-progress-current");
     this.listEl = contentEl.createDiv("wayback-progress-list");
@@ -1154,7 +1314,10 @@ class WaybackProgressModal extends Modal {
   }
 
   markComplete(index: number, result: ArchiveResult) {
-    if (result.archivedUrl) {
+    if (result.canceled) {
+      this.items[index].state = "canceled";
+      this.items[index].message = "Canceled";
+    } else if (result.archivedUrl) {
       this.items[index].state = result.usedFallback ? "fallback" : "success";
       this.items[index].message = result.usedFallback
         ? "Used latest existing snapshot"
@@ -1168,13 +1331,43 @@ class WaybackProgressModal extends Modal {
   }
 
   updateMessage(index: number, message: string) {
+    if (this.items[index].state === "canceled") {
+      return;
+    }
+
     this.items[index].state = "working";
     this.items[index].message = message;
     this.render();
   }
 
-  finish() {
+  requestCancel() {
+    this.cancelRequested = true;
+
+    for (const item of this.items) {
+      if (item.state === "pending") {
+        item.state = "canceled";
+        item.message = "Canceled before starting";
+      } else if (item.state === "working") {
+        item.message = "Canceling after current request finishes";
+      }
+    }
+
+    this.render();
+  }
+
+  finish(canceled = false) {
     this.finished = true;
+    this.canceled = canceled;
+
+    if (canceled) {
+      for (const item of this.items) {
+        if (item.state === "pending" || item.state === "working") {
+          item.state = "canceled";
+          item.message = "Canceled";
+        }
+      }
+    }
+
     this.render();
   }
 
@@ -1187,13 +1380,17 @@ class WaybackProgressModal extends Modal {
     const successes = this.items.filter((item) => item.state === "success").length;
     const fallbacks = this.items.filter((item) => item.state === "fallback").length;
     const failures = this.items.filter((item) => item.state === "failed").length;
+    const canceled = this.items.filter((item) => item.state === "canceled").length;
     const current = this.items.find((item) => item.state === "working");
 
-    this.headingEl.setText(`${this.title} ${this.finished ? "complete" : "running"}`);
+    this.headingEl.setText(`${this.title} ${this.canceled ? "canceled" : this.finished ? "complete" : "running"}`);
     this.summaryEl.setText(
-      `${completed}/${this.items.length} done | ${successes} fresh | ${fallbacks} fallback | ${failures} failed`
+      `${completed}/${this.items.length} done | ${successes} fresh | ${fallbacks} fallback | ${failures} failed` +
+        (canceled ? ` | ${canceled} canceled` : "")
     );
     this.currentEl.setText(current ? `Current: ${current.url}` : "Current: none");
+    this.cancelButtonEl.disabled = this.finished || this.cancelRequested;
+    this.cancelButtonEl.setText(this.cancelRequested ? "Canceling..." : "Cancel");
     this.listEl.empty();
 
     for (const item of this.items) {
@@ -1218,5 +1415,93 @@ function stateLabel(state: ArchiveState) {
       return "Fallback";
     case "failed":
       return "Failed";
+    case "canceled":
+      return "Canceled";
+  }
+}
+
+function confirmVaultArchive(
+  app: App,
+  counts: { linkCount: number; noteCount: number; uniqueUrlCount: number }
+) {
+  return new Promise<boolean>((resolve) => {
+    new VaultArchiveConfirmModal(app, counts, resolve).open();
+  });
+}
+
+class VaultArchiveConfirmModal extends Modal {
+  private counts: { linkCount: number; noteCount: number; uniqueUrlCount: number };
+  private resolve: (confirmed: boolean) => void;
+  private resolved = false;
+
+  constructor(
+    app: App,
+    counts: { linkCount: number; noteCount: number; uniqueUrlCount: number },
+    resolve: (confirmed: boolean) => void
+  ) {
+    super(app);
+    this.counts = counts;
+    this.resolve = resolve;
+  }
+
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    this.modalEl.addClass("wayback-confirm-shell");
+    contentEl.addClass("wayback-confirm-modal");
+
+    contentEl.createEl("h2", { text: "Archive all vault links?" });
+    contentEl.createEl("p", {
+      cls: "wayback-confirm-intro",
+      text: "Wayback Linker found external links across your vault."
+    });
+
+    const stats = contentEl.createDiv("wayback-confirm-stats");
+    this.createStat(stats, String(this.counts.linkCount), "Links found");
+    this.createStat(stats, String(this.counts.noteCount), "Notes affected");
+    this.createStat(stats, String(this.counts.uniqueUrlCount), "Unique URLs to archive");
+
+    contentEl.createEl("p", {
+      cls: "wayback-confirm-note",
+      text: "Successful fresh captures or enabled fallbacks will replace matching URLs across Markdown notes. Existing Wayback links are skipped."
+    });
+
+    const actions = contentEl.createDiv("wayback-confirm-actions");
+    const cancelButton = actions.createEl("button", {
+      cls: "wayback-confirm-button",
+      text: "Cancel"
+    });
+    const confirmButton = actions.createEl("button", {
+      cls: "wayback-confirm-button mod-cta",
+      text: "Archive vault"
+    });
+
+    cancelButton.addEventListener("click", () => this.finish(false));
+    confirmButton.addEventListener("click", () => this.finish(true));
+  }
+
+  onClose() {
+    this.modalEl.removeClass("wayback-confirm-shell");
+
+    if (!this.resolved) {
+      this.resolved = true;
+      this.resolve(false);
+    }
+  }
+
+  private createStat(container: HTMLElement, value: string, label: string) {
+    const stat = container.createDiv("wayback-confirm-stat");
+    stat.createDiv({ cls: "wayback-confirm-stat-value", text: value });
+    stat.createDiv({ cls: "wayback-confirm-stat-label", text: label });
+  }
+
+  private finish(confirmed: boolean) {
+    if (this.resolved) {
+      return;
+    }
+
+    this.resolved = true;
+    this.resolve(confirmed);
+    this.close();
   }
 }

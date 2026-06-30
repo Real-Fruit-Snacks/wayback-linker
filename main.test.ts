@@ -8,6 +8,7 @@ import {
   findExternalLinks,
   isFreshTimestamp,
   latestAvailableSnapshotFromCdxApi,
+  parseIgnoredDomainsSetting,
   replacementsFromArchivedUrls,
   shouldArchiveUrl,
   uniqueArchiveUrlsFromContent
@@ -50,6 +51,21 @@ describe("link discovery", () => {
     expect(findExternalLinks(content, true)).toEqual([]);
   });
 
+  it("skips ignored domains and subdomains without matching lookalike hosts", () => {
+    const content = [
+      "Ignored https://amazon.com/item",
+      "Also ignored https://www.amazon.com/item",
+      "Subdomain ignored https://smile.amazon.com/item",
+      "Kept https://amazon.com.evil.example/item",
+      "Kept https://example.com/page"
+    ].join("\n");
+
+    expect(findExternalLinks(content, true, ["amazon.com"]).map((match) => match.url)).toEqual([
+      "https://amazon.com.evil.example/item",
+      "https://example.com/page"
+    ]);
+  });
+
   it("deduplicates archivable URLs for batch runs while skipping Wayback links", () => {
     const content = [
       "First https://example.com/page",
@@ -61,6 +77,18 @@ describe("link discovery", () => {
     expect(uniqueArchiveUrlsFromContent(content, true)).toEqual([
       "https://example.com/page",
       "https://docs.example.com/guide"
+    ]);
+  });
+
+  it("deduplicates archivable URLs after ignored domains are removed", () => {
+    const content = [
+      "Buy https://amazon.com/item",
+      "Read https://example.com/page",
+      "Again https://example.com/page"
+    ].join("\n");
+
+    expect(uniqueArchiveUrlsFromContent(content, true, ["amazon.com"])).toEqual([
+      "https://example.com/page"
     ]);
   });
 
@@ -169,5 +197,19 @@ describe("timestamps and archive filtering", () => {
     expect(shouldArchiveUrl("https://example.com")).toBe(true);
     expect(shouldArchiveUrl("https://web.archive.org/web/20200101000000/https://example.com")).toBe(false);
     expect(shouldArchiveUrl("http://www.web.archive.org/web/20200101000000/http://example.com")).toBe(false);
+  });
+
+  it("parses ignored domain settings from lines, commas, urls, and wildcards", () => {
+    expect(parseIgnoredDomainsSetting("Amazon.com, https://www.example.com/path\n*.docs.example.org")).toEqual([
+      "amazon.com",
+      "example.com",
+      "docs.example.org"
+    ]);
+  });
+
+  it("uses ignored domains when deciding whether to archive URLs", () => {
+    expect(shouldArchiveUrl("https://www.amazon.com/item", ["amazon.com"])).toBe(false);
+    expect(shouldArchiveUrl("https://smile.amazon.com/item", ["amazon.com"])).toBe(false);
+    expect(shouldArchiveUrl("https://amazon.com.evil.example/item", ["amazon.com"])).toBe(true);
   });
 });

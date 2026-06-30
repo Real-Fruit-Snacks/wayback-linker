@@ -6,6 +6,68 @@
   color: var(--text-accent);
 }
 
+.modal.wayback-confirm-shell {
+  width: min(520px, 92vw);
+  max-width: 92vw;
+}
+
+.wayback-confirm-modal {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+}
+
+.wayback-confirm-modal h2 {
+  margin-bottom: 8px;
+}
+
+.wayback-confirm-intro,
+.wayback-confirm-note {
+  color: var(--text-muted);
+  line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.wayback-confirm-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.wayback-confirm-stat {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-secondary);
+}
+
+.wayback-confirm-stat-value {
+  font-size: var(--font-ui-large);
+  font-weight: 700;
+  color: var(--text-normal);
+}
+
+.wayback-confirm-stat-label {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.25;
+}
+
+.wayback-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.wayback-confirm-button {
+  white-space: nowrap;
+}
+
 .modal.wayback-progress-shell {
   width: min(760px, 92vw);
   max-width: 92vw;
@@ -22,6 +84,24 @@
   max-width: 100%;
   min-width: 0;
   overflow-x: hidden;
+}
+
+.wayback-progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.wayback-progress-header h2 {
+  margin: 0;
+  min-width: 0;
+}
+
+.wayback-progress-cancel {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .wayback-progress-summary {
@@ -104,4 +184,31 @@
 
 .wayback-progress-failed .wayback-progress-state {
   color: var(--color-red);
+}
+
+.wayback-progress-canceled .wayback-progress-state {
+  color: var(--text-muted);
+}
+
+@media (max-width: 520px) {
+  .wayback-confirm-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .wayback-confirm-actions {
+    flex-direction: column-reverse;
+  }
+
+  .wayback-confirm-button {
+    width: 100%;
+  }
+
+  .wayback-progress-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .wayback-progress-cancel {
+    width: 100%;
+  }
 }

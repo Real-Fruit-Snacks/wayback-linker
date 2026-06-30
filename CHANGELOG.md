@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.3 - 2026-06-29
+
+- Add ignored-domain settings for hosts that should never be archived.
+- Add cancel controls to stop long active-note or vault-wide runs.
+- Replace the native vault confirmation dialog with a styled Obsidian modal.
+- Update documentation and tests for ignored domains and cancelable runs.
+
 ## 1.0.2 - 2026-06-29
 
 - Add **Archive all vault links with Wayback Machine** command palette action.
