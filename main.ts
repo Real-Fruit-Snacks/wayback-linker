@@ -80,8 +80,12 @@ const HTTP_URL_PATTERN = /^https?:\/\//i;
 
 export default class WaybackLinkerPlugin extends Plugin {
   settings: WaybackLinkerSettings;
+  private isUnloading = false;
+  private activeTokens = new Set<CancellationToken>();
+  private activeModals = new Set<Modal>();
 
   async onload() {
+    this.isUnloading = false;
     await this.loadSettings();
 
     this.addRibbonIcon("archive", "Archive links with Wayback Machine", () => {
@@ -122,6 +126,38 @@ export default class WaybackLinkerPlugin extends Plugin {
     );
 
     this.addSettingTab(new WaybackLinkerSettingTab(this.app, this));
+  }
+
+  onunload() {
+    this.isUnloading = true;
+
+    for (const token of this.activeTokens) {
+      token.cancelled = true;
+    }
+    this.activeTokens.clear();
+
+    for (const modal of [...this.activeModals]) {
+      modal.close();
+    }
+    this.activeModals.clear();
+  }
+
+  trackModal<T extends Modal>(modal: T): T {
+    const originalOnClose = modal.onClose.bind(modal);
+    const originalOpen = modal.open.bind(modal);
+
+    modal.onClose = () => {
+      this.activeModals.delete(modal);
+      originalOnClose();
+    };
+    modal.open = () => {
+      if (!this.isUnloading) {
+        this.activeModals.add(modal);
+        originalOpen();
+      }
+    };
+
+    return modal;
   }
 
   async loadSettings() {
@@ -183,7 +219,7 @@ export default class WaybackLinkerPlugin extends Plugin {
         return;
       }
 
-      const confirmed = await confirmVaultArchive(this.app, {
+      const confirmed = await confirmVaultArchive(this, {
         linkCount,
         noteCount: scans.length,
         uniqueUrlCount: urls.length
@@ -204,29 +240,49 @@ export default class WaybackLinkerPlugin extends Plugin {
       let changedFileCount = 0;
 
       for (const scan of scans) {
-        const editor = this.getActiveEditorForFile(scan.file);
-        const latestContent = editor?.getValue() ?? await this.app.vault.read(scan.file);
-        const replacements = replacementsFromArchivedUrls(
-          latestContent,
-          archivedByUrl,
-          this.settings.archiveBareUrls,
-          this.settings.ignoredDomains
-        );
-
-        if (replacements.length === 0) {
-          continue;
+        if (this.isUnloading) {
+          break;
         }
 
-        const updatedContent = applyReplacements(latestContent, replacements);
+        const editor = this.getActiveEditorForFile(scan.file);
+        let fileReplacedCount = 0;
 
         if (editor) {
-          editor.setValue(updatedContent);
+          const replacements = replacementsFromArchivedUrls(
+            editor.getValue(),
+            archivedByUrl,
+            this.settings.archiveBareUrls,
+            this.settings.ignoredDomains
+          );
+          fileReplacedCount = replacements.length;
+
+          if (fileReplacedCount > 0) {
+            applyEditorReplacements(editor, replacements);
+          }
         } else {
-          await this.app.vault.modify(scan.file, updatedContent);
+          await this.app.vault.process(scan.file, (latestContent) => {
+            const replacements = replacementsFromArchivedUrls(
+              latestContent,
+              archivedByUrl,
+              this.settings.archiveBareUrls,
+              this.settings.ignoredDomains
+            );
+            fileReplacedCount = replacements.length;
+
+            return fileReplacedCount > 0
+              ? applyReplacements(latestContent, replacements)
+              : latestContent;
+          });
         }
 
-        replacedCount += replacements.length;
-        changedFileCount++;
+        if (fileReplacedCount > 0) {
+          replacedCount += fileReplacedCount;
+          changedFileCount++;
+        }
+      }
+
+      if (this.isUnloading) {
+        return;
       }
 
       const failedCount = countFailedResults(archivedByUrl);
@@ -253,7 +309,7 @@ export default class WaybackLinkerPlugin extends Plugin {
     const scans: Array<{ file: TFile; linkCount: number; urls: string[] }> = [];
 
     for (const file of this.app.vault.getMarkdownFiles()) {
-      const content = await this.app.vault.read(file);
+      const content = await this.app.vault.cachedRead(file);
       const matches = findExternalLinks(
         content,
         this.settings.archiveBareUrls,
@@ -275,7 +331,7 @@ export default class WaybackLinkerPlugin extends Plugin {
   }
 
   private async archiveFileLinks(file: TFile, editor?: Editor) {
-    const content = editor?.getValue() ?? await this.app.vault.read(file);
+    const content = editor?.getValue() ?? await this.app.vault.cachedRead(file);
     const matches = findExternalLinks(
       content,
       this.settings.archiveBareUrls,
@@ -295,13 +351,38 @@ export default class WaybackLinkerPlugin extends Plugin {
       "Wayback Linker"
     );
 
-    const latestContent = editor?.getValue() ?? await this.app.vault.read(file);
-    const replacements = replacementsFromArchivedUrls(
-      latestContent,
-      archivedByUrl,
-      this.settings.archiveBareUrls,
-      this.settings.ignoredDomains
-    );
+    if (this.isUnloading) {
+      return;
+    }
+
+    const activeEditor = this.getActiveEditorForFile(file);
+    let replacements: Array<{ match: LinkMatch; archivedUrl: string }> = [];
+
+    if (activeEditor) {
+      replacements = replacementsFromArchivedUrls(
+        activeEditor.getValue(),
+        archivedByUrl,
+        this.settings.archiveBareUrls,
+        this.settings.ignoredDomains
+      );
+
+      if (replacements.length > 0) {
+        applyEditorReplacements(activeEditor, replacements);
+      }
+    } else {
+      await this.app.vault.process(file, (latestContent) => {
+        replacements = replacementsFromArchivedUrls(
+          latestContent,
+          archivedByUrl,
+          this.settings.archiveBareUrls,
+          this.settings.ignoredDomains
+        );
+
+        return replacements.length > 0
+          ? applyReplacements(latestContent, replacements)
+          : latestContent;
+      });
+    }
 
     if (replacements.length === 0) {
       const failures = Array.from(archivedByUrl.values())
@@ -318,14 +399,6 @@ export default class WaybackLinkerPlugin extends Plugin {
       new Notice(msg, 15000);
       progress.finish(canceled);
       return;
-    }
-
-    const updatedContent = applyReplacements(latestContent, replacements);
-
-    if (editor) {
-      editor.setValue(updatedContent);
-    } else {
-      await this.app.vault.modify(file, updatedContent);
     }
 
     const failedCount = countFailedResults(archivedByUrl);
@@ -351,6 +424,9 @@ export default class WaybackLinkerPlugin extends Plugin {
       cancellation.cancelled = true;
       status.setText(`${statusPrefix}: canceling`);
     });
+
+    this.activeTokens.add(cancellation);
+    this.trackModal(progress);
 
     status.addClass("wayback-status-item");
     status.setAttr("aria-label", "Open Wayback Linker progress");
@@ -387,6 +463,7 @@ export default class WaybackLinkerPlugin extends Plugin {
         }
       }
     } finally {
+      this.activeTokens.delete(cancellation);
       status.remove();
     }
 
@@ -396,11 +473,25 @@ export default class WaybackLinkerPlugin extends Plugin {
   private async archiveEditorLink(editor: Editor, link: LinkMatch) {
     new Notice(`Archiving: ${link.url}`, 3500);
 
-    const result = await archiveUrl(
-      normalizeUrl(link.url),
-      this.settings,
-      this.app.secretStorage
-    );
+    const cancellation: CancellationToken = { cancelled: false };
+    this.activeTokens.add(cancellation);
+
+    let result: ArchiveResult;
+    try {
+      result = await archiveUrl(
+        normalizeUrl(link.url),
+        this.settings,
+        this.app.secretStorage,
+        undefined,
+        cancellation
+      );
+    } finally {
+      this.activeTokens.delete(cancellation);
+    }
+
+    if (this.isUnloading || result.canceled) {
+      return;
+    }
 
     if (!result.archivedUrl) {
       const errorMsg = result.error ?? "No archived URL returned.";
@@ -539,7 +630,7 @@ function addBareUrls(
   occupiedRanges: Array<[number, number]>,
   ignoredDomains: string[]
 ) {
-  const bareUrlPattern = /https?:\/\/[^\s<>"')\]]+/gi;
+  const bareUrlPattern = /https?:\/\/[^\s<>"'\]]+/gi;
   let match: RegExpExecArray | null;
 
   while ((match = bareUrlPattern.exec(content)) !== null) {
@@ -636,8 +727,25 @@ function unwrapAngleBrackets(url: string) {
 function trimTrailingPunctuation(url: string) {
   let next = url;
 
-  while (/[.,;:!?]$/.test(next)) {
-    next = next.slice(0, -1);
+  for (;;) {
+    if (/[.,;:!?]$/.test(next)) {
+      next = next.slice(0, -1);
+      continue;
+    }
+
+    // Keep balanced closing parens (Wikipedia-style URLs); trim unbalanced ones
+    // that belong to the surrounding prose.
+    if (next.endsWith(")")) {
+      const openCount = (next.match(/\(/g) ?? []).length;
+      const closeCount = (next.match(/\)/g) ?? []).length;
+
+      if (closeCount > openCount) {
+        next = next.slice(0, -1);
+        continue;
+      }
+    }
+
+    break;
   }
 
   return { url: next };
@@ -734,7 +842,7 @@ async function captureFromSaveResponse(
   headers: Record<string, string>,
   cancellation?: CancellationToken
 ): Promise<CaptureResult> {
-  const data = parseCaptureResponse(response.json);
+  const data = parseCaptureResponse(safeResponseJson(response));
 
   if (data.job_id) {
     return pollCaptureStatus(data.job_id, originalUrl, requestedAt, maxWaitSeconds, headers, cancellation);
@@ -786,7 +894,7 @@ async function pollCaptureStatus(
       headers,
       throw: false
     });
-    const status = parseCaptureResponse(response.json);
+    const status = parseCaptureResponse(safeResponseJson(response));
 
     lastMessage = status.message ?? status.status ?? lastMessage;
 
@@ -920,7 +1028,8 @@ async function latestAvailableSnapshotFromAvailabilityApi(url: string) {
     return undefined;
   }
 
-  const data = isRecord(response.json) ? response.json : {};
+  const json = safeResponseJson(response);
+  const data = isRecord(json) ? json : {};
   const snapshots = isRecord(data.archived_snapshots) ? data.archived_snapshots : {};
   const closest = isRecord(snapshots.closest) ? snapshots.closest : {};
   const available = closest.available === true || closest.available === "true";
@@ -943,7 +1052,7 @@ export async function latestAvailableSnapshotFromCdxApi(url: string) {
     return undefined;
   }
 
-  const json: unknown = response.json;
+  const json = safeResponseJson(response);
   const rows: unknown[] = Array.isArray(json) ? json : [];
   const lastRow = rows
     .filter((row): row is unknown[] => Array.isArray(row))
@@ -1020,6 +1129,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+// RequestUrlResponse.json is a lazy getter that throws on non-JSON bodies
+// (e.g. an HTML error page from the Archive); treat those as "no data".
+function safeResponseJson(response: { json: unknown }): unknown {
+  try {
+    return response.json;
+  } catch {
+    return undefined;
+  }
+}
+
 export function logDebug(settings: WaybackLinkerSettings, message: string, ...args: unknown[]) {
   if (settings.debugMode) {
     console.log(`[Wayback Linker] ${message}`, ...args);
@@ -1071,6 +1190,23 @@ export function applyReplacements(
   }
 
   return updated;
+}
+
+function applyEditorReplacements(
+  editor: Editor,
+  replacements: Array<{ match: LinkMatch; archivedUrl: string }>
+) {
+  const changes = [...replacements]
+    .sort((a, b) => a.match.start - b.match.start)
+    .map(({ match, archivedUrl }) => ({
+      from: editor.offsetToPos(match.start),
+      to: editor.offsetToPos(match.end),
+      text: match.replacement(archivedUrl)
+    }));
+
+  if (changes.length > 0) {
+    editor.transaction({ changes });
+  }
 }
 
 function currentContentFromLink(link: LinkMatch) {
@@ -1263,6 +1399,7 @@ class WaybackProgressModal extends Modal {
   private summaryEl: HTMLElement;
   private currentEl: HTMLElement;
   private listEl: HTMLElement;
+  private rowEls?: Array<{ rowEl: HTMLElement; stateEl: HTMLElement; messageEl: HTMLElement }>;
   private finished = false;
   private canceled = false;
   private cancelRequested = false;
@@ -1297,18 +1434,28 @@ class WaybackProgressModal extends Modal {
     this.summaryEl = contentEl.createDiv("wayback-progress-summary");
     this.currentEl = contentEl.createDiv("wayback-progress-current");
     this.listEl = contentEl.createDiv("wayback-progress-list");
+    this.rowEls = this.items.map((item) => {
+      const rowEl = this.listEl.createDiv("wayback-progress-row");
+      const stateEl = rowEl.createSpan({ cls: "wayback-progress-state" });
+      const detail = rowEl.createDiv("wayback-progress-detail");
+      detail.createDiv({ cls: "wayback-progress-url", text: item.url });
+      const messageEl = detail.createDiv({ cls: "wayback-progress-message" });
+      return { rowEl, stateEl, messageEl };
+    });
 
     this.render();
   }
 
   onClose() {
     this.modalEl.removeClass("wayback-progress-shell");
+    this.rowEls = undefined;
   }
 
   markWorking(index: number) {
     this.items[index].state = "working";
     this.items[index].message = "Requesting fresh capture";
-    this.render();
+    this.updateRow(index);
+    this.renderStatus();
   }
 
   markComplete(index: number, result: ArchiveResult) {
@@ -1325,7 +1472,8 @@ class WaybackProgressModal extends Modal {
       this.items[index].message = result.error ?? "Failed";
     }
 
-    this.render();
+    this.updateRow(index);
+    this.renderStatus();
   }
 
   updateMessage(index: number, message: string) {
@@ -1335,7 +1483,8 @@ class WaybackProgressModal extends Modal {
 
     this.items[index].state = "working";
     this.items[index].message = message;
-    this.render();
+    this.updateRow(index);
+    this.renderStatus();
   }
 
   requestCancel() {
@@ -1370,7 +1519,15 @@ class WaybackProgressModal extends Modal {
   }
 
   private render() {
-    if (!this.summaryEl || !this.currentEl || !this.listEl) {
+    this.renderStatus();
+
+    for (let index = 0; index < this.items.length; index++) {
+      this.updateRow(index);
+    }
+  }
+
+  private renderStatus() {
+    if (!this.summaryEl || !this.currentEl) {
       return;
     }
 
@@ -1389,15 +1546,19 @@ class WaybackProgressModal extends Modal {
     this.currentEl.setText(current ? `Current: ${current.url}` : "Current: none");
     this.cancelButtonEl.disabled = this.finished || this.cancelRequested;
     this.cancelButtonEl.setText(this.cancelRequested ? "Canceling..." : "Cancel");
-    this.listEl.empty();
+  }
 
-    for (const item of this.items) {
-      const row = this.listEl.createDiv(`wayback-progress-row wayback-progress-${item.state}`);
-      row.createSpan({ cls: "wayback-progress-state", text: stateLabel(item.state) });
-      const detail = row.createDiv("wayback-progress-detail");
-      detail.createDiv({ cls: "wayback-progress-url", text: item.url });
-      detail.createDiv({ cls: "wayback-progress-message", text: item.message });
+  private updateRow(index: number) {
+    const els = this.rowEls?.[index];
+    const item = this.items[index];
+
+    if (!els || !item) {
+      return;
     }
+
+    els.rowEl.className = `wayback-progress-row wayback-progress-${item.state}`;
+    els.stateEl.setText(stateLabel(item.state));
+    els.messageEl.setText(item.message);
   }
 }
 
@@ -1419,11 +1580,13 @@ function stateLabel(state: ArchiveState) {
 }
 
 function confirmVaultArchive(
-  app: App,
+  plugin: WaybackLinkerPlugin,
   counts: { linkCount: number; noteCount: number; uniqueUrlCount: number }
 ) {
   return new Promise<boolean>((resolve) => {
-    new VaultArchiveConfirmModal(app, counts, resolve).open();
+    const modal = new VaultArchiveConfirmModal(plugin.app, counts, resolve);
+    plugin.trackModal(modal);
+    modal.open();
   });
 }
 

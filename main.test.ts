@@ -104,6 +104,31 @@ describe("link discovery", () => {
       "[Example](<https://web.archive.org/web/20260101000000/https://example.com>)"
     );
   });
+
+  it("keeps balanced parentheses in bare URLs", () => {
+    const content = "See https://en.wikipedia.org/wiki/Foo_(bar) for details";
+
+    expect(findExternalLinks(content, true).map((match) => match.url)).toEqual([
+      "https://en.wikipedia.org/wiki/Foo_(bar)"
+    ]);
+  });
+
+  it("drops closing parentheses that belong to the surrounding prose", () => {
+    const content = "(see https://example.com/path) and (https://example.org/a_(b)) done";
+
+    expect(findExternalLinks(content, true).map((match) => match.url)).toEqual([
+      "https://example.com/path",
+      "https://example.org/a_(b)"
+    ]);
+  });
+
+  it("trims trailing punctuation after a balanced parenthesis", () => {
+    const content = "Go to https://en.wikipedia.org/wiki/Foo_(bar).";
+
+    expect(findExternalLinks(content, true).map((match) => match.url)).toEqual([
+      "https://en.wikipedia.org/wiki/Foo_(bar)"
+    ]);
+  });
 });
 
 describe("replacement", () => {
@@ -173,6 +198,18 @@ describe("fallback helpers", () => {
     requestUrlMock.mockResolvedValue({
       status: 200,
       json: [["timestamp", "original", "statuscode"]]
+    });
+
+    await expect(latestAvailableSnapshotFromCdxApi("https://example.com")).resolves.toBeUndefined();
+  });
+
+  it("returns undefined when the CDX response body is not JSON", async () => {
+    requestUrlMock.mockResolvedValue({
+      status: 200,
+      get json(): unknown {
+        throw new Error("invalid JSON");
+      },
+      text: "<html>error page</html>"
     });
 
     await expect(latestAvailableSnapshotFromCdxApi("https://example.com")).resolves.toBeUndefined();
