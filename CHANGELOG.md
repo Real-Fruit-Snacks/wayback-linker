@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.4 - 2026-07-09
+
+- Stop in-flight archiving and close plugin windows when the plugin is disabled or unloaded.
+- Write note changes atomically so edits from sync or other tools are never overwritten during long runs.
+- Preserve cursor, scroll position, and undo history when replacing links in the active note.
+- Keep balanced parentheses in bare URLs, so Wikipedia-style links are no longer truncated.
+- Handle non-JSON Wayback responses gracefully so snapshot fallbacks keep working.
+- Update the progress window in place instead of rebuilding the list on every status change.
+- Redesign the README, brand assets, and documentation site with the Terminal Workbench design system.
+- Attest release asset provenance in the release workflow and resolve lint findings ahead of community review.
+
 ## 1.0.3 - 2026-06-29
 
 - Add ignored-domain settings for hosts that should never be archived.
