@@ -77,9 +77,6 @@ interface CancellationToken {
 }
 
 const HTTP_URL_PATTERN = /^https?:\/\//i;
-const INTERNET_ARCHIVE_S3_API_ENDPOINT = "https://s3.us.archive.org";
-const WAYBACK_MACHINE_SNAPSHOT_URL_PREFIX = "https://web.archive.org/web/";
-const WAYBACK_MACHINE_CDX_API_ENDPOINT = "https://web.archive.org/cdx/search/cdx";
 
 export default class WaybackLinkerPlugin extends Plugin {
   settings: WaybackLinkerSettings;
@@ -946,7 +943,8 @@ export async function latestAvailableSnapshotFromCdxApi(url: string) {
     return undefined;
   }
 
-  const rows = Array.isArray(response.json) ? response.json : [];
+  const json: unknown = response.json;
+  const rows: unknown[] = Array.isArray(json) ? json : [];
   const lastRow = rows
     .filter((row): row is unknown[] => Array.isArray(row))
     .filter((row) => typeof row[0] === "string" && /^\d{14}$/.test(row[0]))
@@ -1022,7 +1020,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-export function logDebug(settings: WaybackLinkerSettings, message: string, ...args: any[]) {
+export function logDebug(settings: WaybackLinkerSettings, message: string, ...args: unknown[]) {
   if (settings.debugMode) {
     console.log(`[Wayback Linker] ${message}`, ...args);
   }

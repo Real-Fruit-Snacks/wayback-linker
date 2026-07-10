@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   release:
@@ -25,6 +27,13 @@ jobs:
         run: |
           MANIFEST_VERSION=$(node -p "require('./manifest.json').version")
           test "$MANIFEST_VERSION" = "$GITHUB_REF_NAME"
+      - name: Attest release asset provenance
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: |
+            main.js
+            manifest.json
+            styles.css
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
