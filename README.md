@@ -1,13 +1,17 @@
 <div align="center">
 
-  # Wayback Linker
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-dark.svg" />
+    <img alt="Wayback Linker" src="docs/assets/logo-light.svg" width="560" />
+  </picture>
 
-  **Archive external links in your active note or whole vault with the Wayback Machine.**
+  **Archive external links in a note — or your whole vault — with the Wayback Machine, and replace them with durable snapshot URLs.**
 
-  [![License: MIT](https://img.shields.io/badge/License-MIT-cba6f7.svg)](https://opensource.org/licenses/MIT)
-  [![Version](https://img.shields.io/badge/version-1.0.3-89b4fa)](https://github.com/Real-Fruit-Snacks/wayback-linker/releases)
-  
-  [Documentation](https://Real-Fruit-Snacks.github.io/wayback-linker) • [Report Issue](https://github.com/Real-Fruit-Snacks/wayback-linker/issues) • [Request Feature](https://github.com/Real-Fruit-Snacks/wayback-linker/issues)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-63f2ab.svg)](LICENSE)
+  [![Latest release](https://img.shields.io/github/v/release/Real-Fruit-Snacks/wayback-linker?color=6bdcff&label=release)](https://github.com/Real-Fruit-Snacks/wayback-linker/releases)
+  [![Obsidian](https://img.shields.io/badge/Obsidian-1.11%2B-f0c674.svg)](https://obsidian.md)
+
+  [Documentation](https://real-fruit-snacks.github.io/wayback-linker/) · [Changelog](CHANGELOG.md) · [Report an issue](https://github.com/Real-Fruit-Snacks/wayback-linker/issues)
 
 </div>
 
@@ -15,83 +19,115 @@
 
 ## Overview
 
-Wayback Linker is an Obsidian plugin that automatically archives external links in your active note or across your vault using the Internet Archive's Wayback Machine. It seamlessly replaces each original link with the newly archived snapshot URL, ensuring your links never suffer from link rot.
+Wayback Linker sends the external `http(s)` links in your notes to the Internet Archive's **Save Page Now** service, waits for each capture to finish, and rewrites the link in place to the resulting `web.archive.org` snapshot URL. The sources you cite stay readable even after the original page changes or disappears.
 
-### Key Features
+Archiving works at three scopes:
 
-- **Automated Archiving:** Processes every external `http://` and `https://` link in the active Markdown note.
-- **Vault-Wide Scan:** Scans every Markdown note, confirms the scope, archives each unique URL once, and replaces successful links across the vault.
-- **Ignored Domains:** Skips domains you add in settings, including matching subdomains.
-- **Cancelable Runs:** Stops long note or vault runs from the progress window.
-- **Save Page Now Integration:** Sends URLs directly to the Wayback Machine's capture endpoint.
-- **Smart Replacement:** Replaces links only when a fresh snapshot URL is successfully generated.
-- **Fallback Support:** Optionally falls back to the most recent existing snapshot if a fresh capture fails or times out.
-- **Secure Credentials:** Utilizes Obsidian's native secure keychain to store your Internet Archive API keys.
+- **Active note** — the ribbon button or a command processes every external link in the current Markdown note.
+- **Whole vault** — a command scans every note, shows a confirmation with link/note/URL counts, archives each unique URL once, and replaces successful links across the vault.
+- **Single link** — right-click any external URL in the editor and archive just that one.
 
----
+Long runs show a live progress window with per-URL status and a Cancel button, plus a clickable status-bar counter. Links are only replaced when a capture actually succeeds — a failed or canceled URL keeps its original link untouched.
 
-## Getting Started
+## Features
 
-### Installation
+- **Fresh captures, verified** — asks Save Page Now for a new snapshot and checks the returned timestamp is actually fresh, not a stale capture served from cache.
+- **Vault-wide scan with confirmation** — see exactly how many links, notes, and unique URLs are affected before anything runs.
+- **Markdown-aware parsing** — handles `[text](url)` links, `<autolinks>`, and (optionally) bare pasted URLs, while skipping images and existing `web.archive.org` links.
+- **Ignored domains** — list domains to skip (subdomains included), one per line or comma-separated.
+- **Throttle handling** — when the Archive reports its active-session limit, the plugin waits and retries on a configurable schedule instead of failing.
+- **Optional snapshot fallback** — if a fresh capture fails or times out, optionally fall back to the most recent existing snapshot from the availability and CDX APIs.
+- **Cancelable runs** — stop a batch at any point; replacements already completed are kept, everything else is left unchanged.
+- **Secure credentials** — Internet Archive S3 keys live in Obsidian's native keychain, never in plugin data files.
+- **Desktop and mobile** — uses Obsidian's own networking API throughout, so it works on both.
 
-**Manual install:**
+## Installation
 
-1. Download `main.js`, `manifest.json`, and `styles.css` from the latest [release](https://github.com/Real-Fruit-Snacks/wayback-linker/releases).
-2. Create `<your-vault>/.obsidian/plugins/wayback-linker/`.
-3. Drop the three files into that folder.
-4. Navigate to **Settings -> Community plugins** and enable **Wayback Linker**.
+**Requires Obsidian 1.11.4 or newer.**
 
----
+### Community plugins (recommended)
 
-## Usage
+1. Open **Settings → Community plugins → Browse**.
+2. Search for **Wayback Linker**, then **Install** and **Enable**.
 
-You can trigger the archiving process in three ways:
-1. Click the ribbon button or run **Archive active note links with Wayback Machine** from the command palette to process the entire note.
-2. Run **Archive all vault links with Wayback Machine** from the command palette to scan every Markdown note, confirm the count, archive each unique URL once, and replace successful links across the vault.
-3. Right-click an external URL in the editor and choose **Archive link with Wayback Machine** to process just that link.
+### BRAT (for the latest pre-release)
 
-Use **Settings -> Wayback Linker -> Ignored domains** to skip hosts you never want archived, such as `amazon.com`. Enter one domain per line or separate entries with commas.
+Install [BRAT](https://github.com/TfTHacker/obsidian42-brat), then add `Real-Fruit-Snacks/wayback-linker` as a beta plugin.
 
-### Internet Archive Login
+### Manual
 
-Fresh captures may require an authenticated Internet Archive account.
-1. Log in to your Internet Archive account and navigate to `https://archive.org/account/s3.php`.
+Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/Real-Fruit-Snacks/wayback-linker/releases/latest) into `<your-vault>/.obsidian/plugins/wayback-linker/`, then enable Wayback Linker under **Settings → Community plugins**.
+
+## Getting started
+
+1. Open a note with external links and click the **archive** ribbon icon — or run a command from the palette.
+2. Watch the progress window; each URL shows *Working*, *Fresh*, *Fallback*, or *Failed* as captures complete.
+3. Successful links are rewritten in place to their `web.archive.org` snapshot.
+
+### Commands
+
+| Command | Description |
+| --- | --- |
+| Archive active note links with Wayback Machine | Archive every external link in the current note |
+| Archive all vault links with Wayback Machine | Scan the vault, confirm the scope, then archive and replace across all notes |
+
+You can also **right-click any external URL** in the editor and choose **Archive link with Wayback Machine** to process a single link.
+
+### Settings
+
+| Setting | Purpose |
+| --- | --- |
+| Delay between archive requests | Milliseconds to wait between Save Page Now requests (default 1500) |
+| Archive bare URLs | Also replace plain pasted URLs that aren't inside Markdown links |
+| Ignored domains | Domains to skip everywhere, including subdomains |
+| Maximum wait for fresh captures | Seconds to wait for a capture before leaving the link unchanged |
+| Fall back to latest existing snapshot | Use the newest existing snapshot when a fresh capture fails |
+| Throttle retry delay / Maximum throttle retries | How patiently to retry when the Archive rate-limits |
+| Internet Archive access key / secret key | Keychain entries for authenticated captures |
+| Debug mode | Log errors and internals to the developer console |
+
+### Internet Archive authentication
+
+Fresh captures are more reliable with an authenticated account:
+
+1. Log in at archive.org and open <https://archive.org/account/s3.php>.
 2. Copy your access key and secret key.
-3. In Obsidian, open **Settings -> Wayback Linker**.
-4. Create separate keychain entries for both your access key and secret key using the secure selectors.
+3. In **Settings → Wayback Linker**, create keychain entries for both keys using the secure selectors.
 
-*Note: Only the selected secret IDs are written to `data.json`; the actual credentials remain in Obsidian's secure keychain.*
+Only the keychain entry *names* are written to `data.json` — the actual credentials stay in Obsidian's secure keychain.
 
----
+## How replacement works
 
-## Architecture / File Structure
+Wayback Linker is deliberately conservative about touching your notes:
 
-```text
+- Notes are **re-read and re-parsed after archiving finishes**, so edits you make while captures run never cause a stale or misplaced replacement.
+- A link is replaced only when the Archive returns a verified snapshot; failures, timeouts, and cancellations leave the original untouched.
+- The single-link right-click flow re-checks that the exact link text is still where it was before replacing it.
+
+## Privacy
+
+The plugin talks only to the Internet Archive (`web.archive.org` / `archive.org`) over HTTPS — no telemetry, no third-party services. Be aware that archiving is inherently public: every URL you archive is sent to the Internet Archive, and successful captures become publicly visible snapshots. Use **Ignored domains** for anything you'd rather keep out.
+
+## Architecture
+
+```
 wayback-linker/
-├── main.js          # Plugin entry
-├── manifest.json    # Obsidian plugin manifest
-├── styles.css       # Plugin styles
-└── package.json     # Node dependencies and scripts
+├── main.ts            Plugin source (TypeScript, bundled with esbuild)
+├── main.test.ts       Unit tests for parsing and replacement (Vitest)
+├── manifest.json      Obsidian plugin manifest
+├── styles.css         Plugin styles, scoped to .wayback-* classes
+├── versions.json      Plugin version → minimum Obsidian version map
+└── docs/              Documentation site and brand assets
 ```
 
----
+- **Parsing and replacement are pure functions**, exported and unit-tested independently of Obsidian.
+- **All network activity** goes through Obsidian's `requestUrl`, so it works on mobile and respects the platform.
+- **Rate-limit citizenship** — configurable inter-request delay, Save Page Now session-limit detection, and bounded retries.
 
 ## Contributing
 
-Contributions from the community are highly encouraged. Whether it's adding new features, improving the parser, or fixing bugs, your help is appreciated.
-
-Please refer to the `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md` files for full guidelines on how to submit pull requests and report issues.
-
----
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md) before opening a pull request.
 
 ## License
 
-Distributed under the MIT License. See `LICENSE` for more information.
-
----
-
-## Contact
-
-Real-Fruit-Snacks - [https://github.com/Real-Fruit-Snacks](https://github.com/Real-Fruit-Snacks)
-
-Project Link: [https://github.com/Real-Fruit-Snacks/wayback-linker](https://github.com/Real-Fruit-Snacks/wayback-linker)
+Released under the [MIT License](LICENSE).
