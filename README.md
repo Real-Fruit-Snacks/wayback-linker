@@ -1,8 +1,8 @@
 <div align="center">
 
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-dark.svg" />
-    <img alt="Wayback Linker" src="docs/assets/logo-light.svg" width="560" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://real-fruit-snacks.github.io/wayback-linker/assets/logo-dark.svg" />
+    <img alt="Wayback Linker" src="https://real-fruit-snacks.github.io/wayback-linker/assets/logo-light.svg" width="560" />
   </picture>
 
   **Archive external links in a note — or your whole vault — with the Wayback Machine, and replace them with durable snapshot URLs.**
